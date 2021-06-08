@@ -1,4 +1,8 @@
+using System;
+using System.IO;
+using System.Reflection;
 using NUnit.Framework;
+using PropertyBinder.Diagnostics;
 using Shouldly;
 
 namespace PropertyBinder.Tests
@@ -54,7 +58,7 @@ namespace PropertyBinder.Tests
             {
                 calls.ShouldBe(0);
 
-                _stub.String = "a"; 
+                _stub.String = "a";
                 calls.ShouldBe(0); // condition is false, don't trigger on subexpression
 
                 _stub.Int = 1;
@@ -119,5 +123,22 @@ namespace PropertyBinder.Tests
                 callbacks.ShouldBe(2);
             }
         }
+
+#if NETSTANDARD
+        [Test]
+        public void ShouldSaveAssembly()
+        {
+            //Given
+            var testLocation = Assembly.GetExecutingAssembly().Location;
+            var assemblyPath = Path.GetDirectoryName(testLocation) ?? throw new ApplicationException($"Wrong assembly path: {testLocation}");
+            var dynamicAssyemblyPath = Path.Combine(assemblyPath, "PropertyBinder.Dynamic.dll");
+            
+            //When
+            VirtualFrameCompiler.TakeSnapshot(dynamicAssyemblyPath);
+
+            //Then
+            File.Exists(dynamicAssyemblyPath).ShouldBe(true);
+        }
+#endif
     }
 }
