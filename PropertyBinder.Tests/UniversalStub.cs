@@ -7,7 +7,27 @@ using System.Windows.Input;
 
 namespace PropertyBinder.Tests
 {
-    internal class UniversalStub : INotifyPropertyChanged
+    internal interface IUniversalStub : INotifyPropertyChanged
+    {
+        int Int { get; set; }
+        int? NullableInt { get; set; }
+        bool? NullableBool { get; set; }
+        decimal Decimal { get; set; }
+        double Double { get; set; }
+        bool Flag { get; set; }
+        string String { get; set; }
+        string String2 { get; set; }
+        DateTime DateTime { get; set; }
+        UniversalStub Nested { get; set; }
+        KeyValuePair<string, UniversalStub> Pair { get; set; }
+        ICommand Command { get; set; }
+        ObservableCollection<UniversalStub> Collection { get; set; }
+        IEnumerable<UniversalStub> EnumerableCollection { get; set; }
+        ObservableDictionary<string> Dictionary { get; set; }
+        int SubscriptionsCount { get; }
+    }
+
+    internal class UniversalStub : IUniversalStub
     {
         public UniversalStub()
         {
@@ -21,6 +41,8 @@ namespace PropertyBinder.Tests
         public int Int { get; set; }
 
         public int? NullableInt { get; set; }
+        
+        public bool? NullableBool { get; set; }
 
         public decimal Decimal { get; set; }
 
@@ -35,6 +57,8 @@ namespace PropertyBinder.Tests
         public DateTime DateTime { get; set; }
 
         public UniversalStub Nested { get; set; }
+        
+        public IUniversalStub NestedInterface { get; set; }
 
         public KeyValuePair<string, UniversalStub> Pair { get; set; }
 

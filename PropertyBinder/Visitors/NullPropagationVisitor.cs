@@ -67,7 +67,7 @@ namespace PropertyBinder.Visitors
 
         private bool IsNullable(Type type)
         {
-            if (type.IsClass)
+            if (type.IsClass || type.IsInterface)
             {
                 return true;
             }

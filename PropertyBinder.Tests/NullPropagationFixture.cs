@@ -24,6 +24,20 @@ namespace PropertyBinder.Tests
                 _stub.NullableInt.ShouldBe(null);
             }
         }
+        
+        [Test]
+        public void ShouldPropagateNullInterface()
+        {
+            _binder.Bind(x => (bool?) x.NestedInterface.Flag).PropagateNullValues().To((x,v) => x.NullableBool = v);
+            using (_binder.Attach(_stub))
+            {
+                _stub.NullableBool.ShouldBe(null);
+                _stub.NestedInterface = new UniversalStub();
+                _stub.NullableBool.ShouldBe(false);
+                _stub.NestedInterface.Flag = true;
+                _stub.NullableBool.ShouldBe(true);
+            }
+        }
 
         [Test]
         public void ShouldPropagateNullsInCoalesceOperator()

@@ -11,17 +11,26 @@ namespace PropertyBinder.Tests
         [Test]
         public void ShouldPreservePublicApi()
         {
-            string fileName = Path.Combine(Environment.CurrentDirectory, @"..\..\PublicApi.txt");
+#if NET45
+            string fileName = Path.Combine(Environment.CurrentDirectory, @"..\..\..\PublicApi\PublicApi_NET45.txt");
+#endif
 
-            var api = PublicApiGenerator.ApiGenerator.GeneratePublicApi(typeof (Binder<>).Assembly);
+#if NETSTANDARD 
+            string fileName = Path.Combine(Environment.CurrentDirectory, @"..\..\..\PublicApi\PublicApi_NETSTANDARD21.txt");
+#endif
+
+            var assembly = typeof(Binder<>).Assembly;
+            var api = PublicApiGenerator.ApiGenerator.GeneratePublicApi(assembly);
+            var frameworkVersion = assembly.ImageRuntimeVersion;
             if (File.Exists(fileName))
             {
                 var currentApi = File.ReadAllText(fileName);
                 if (!string.Equals(api, currentApi))
                 {
                     File.WriteAllText(fileName, api);
-                    throw new Exception("API mismatch, check git diff");
                 }
+
+                Assert.AreEqual(api, currentApi, $"API mismatch for {frameworkVersion}, check git diff");
             }
             else
             {
