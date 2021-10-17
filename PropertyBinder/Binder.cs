@@ -139,21 +139,23 @@ namespace PropertyBinder
                     }
                     catch (Exception ex)
                     {
-                        ExceptionEventArgs ea;
+                        string stampResult;
                         try 
                         {
-                            Func<TContext, string> stamped = ExpressionHelpers.Stamped<TContext>(action.StampExpression);
-                            ea = new ExceptionEventArgs(ex, stamped?.Invoke(context) ?? "");
+                            var stamped = ExpressionHelpers.Stamped<TContext>(action.StampExpression);
+                            stampResult = stamped?.Invoke(context) ?? "NULL";
                         }
-                        catch
+                        catch(Exception stampEx)
                         {
-                            ea = new ExceptionEventArgs(ex, "");
+                            stampResult = $"Failed: {stampEx}";
                         }
+                        var debugDetails = new { StampExpression = action.StampExpression.ToString(), StampInvokeResult = stampResult, Context = context }.ToString();
 
+                        var ea = new ExceptionEventArgs(ex, debugDetails);
                         Binder.ExceptionHandler?.Invoke(this, ea);
                         if (!ea.Handled)
                         {
-                            throw;
+                            throw new Exception($"Binder exception - {debugDetails}", ex);
                         }
                     }
                 }
