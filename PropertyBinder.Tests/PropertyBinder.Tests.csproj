@@ -1,14 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net45;netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net45;netcoreapp3.1</TargetFrameworks>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\PropertyBinder\PropertyBinder.csproj">
-      <Project>{c5b0e4fa-9b98-4fd3-a650-782161655466}</Project>
-      <Name>PropertyBinder</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Moq" Version="4.15.2" />
@@ -19,6 +15,23 @@
     <PackageReference Include="PublicApiGenerator" Version="9.3.0" />
     <PackageReference Include="Shouldly" Version="3.0.2" />
   </ItemGroup>
+
+  <ItemGroup Condition="$(DefineConstants.Contains('NETCOREAPP'))">
+    <ProjectReference Include="..\PropertyBinder\PropertyBinder.csproj" >
+      <Project>{c5b0e4fa-9b98-4fd3-a650-782161655466}</Project>
+      <SetTargetFramework>TargetFramework=netstandard2.1</SetTargetFramework>
+      <Name>PropertyBinder</Name>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup Condition="$(DefineConstants.Contains('NETFRAMEWORK'))">
+    <ProjectReference Include="..\PropertyBinder\PropertyBinder.csproj" >
+      <Project>{c5b0e4fa-9b98-4fd3-a650-782161655466}</Project>
+      <SetTargetFramework>TargetFramework=net45</SetTargetFramework>
+      <Name>PropertyBinder</Name>
+    </ProjectReference>
+  </ItemGroup>
+  
   <ItemGroup>
     <None Update="PublicApi\PublicApi_NETSTANDARD21.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

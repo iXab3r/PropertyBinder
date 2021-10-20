@@ -39,7 +39,7 @@ namespace PropertyBinder.Tests
             }
             catch
             {
-                ea.StampedStr.ShouldBe("R: 4;\r\nF1: 1;\r\nF2: 2;\r\n");
+                ea.StampedStr.ShouldNotBeNullOrEmpty();
             }
         }
 

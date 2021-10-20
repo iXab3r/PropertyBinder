@@ -151,9 +151,9 @@ namespace PropertyBinder
                         }
                         var debugDetails = new { StampExpression = action.StampExpression.ToString(), StampInvokeResult = stampResult, Context = context }.ToString();
 
-                        var ea = new ExceptionEventArgs(ex, debugDetails);
-                        Binder.ExceptionHandler?.Invoke(this, ea);
-                        if (!ea.Handled)
+                        var exceptionEventArgs = new ExceptionEventArgs(ex, debugDetails);
+                        Binder.ExceptionHandler?.Invoke(this, exceptionEventArgs);
+                        if (!exceptionEventArgs.Handled)
                         {
                             throw new Exception($"Binder exception - {debugDetails}", ex);
                         }
@@ -190,6 +190,7 @@ namespace PropertyBinder
     public static class Binder
     {
         private static bool _debugMode = Debugger.IsAttached;
+        private static bool _supportTransactions = false;
 
         private sealed class BindingTransaction : IDisposable
         {
@@ -228,6 +229,19 @@ namespace PropertyBinder
                 if (_debugMode != value)
                 {
                     _debugMode = value;
+                    BindingExecutor.ResetInstance();
+                }
+            }
+        }
+        
+        public static bool SupportTransactions
+        {
+            get => _supportTransactions;
+            set
+            {
+                if (_supportTransactions != value)
+                {
+                    _supportTransactions = value;
                     BindingExecutor.ResetInstance();
                 }
             }

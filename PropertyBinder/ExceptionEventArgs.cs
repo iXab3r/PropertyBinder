@@ -13,9 +13,13 @@ namespace PropertyBinder
         }
 
         public string Description { get; }
-
         public Exception Exception { get; }
         public string StampedStr { get; }
         public bool Handled { get; set; }
+
+        public override string ToString()
+        {
+            return $"{nameof(Exception)}: {Exception}, {nameof(Description)}: {Description}, {nameof(StampedStr)}: {StampedStr}, {nameof(Handled)}: {Handled}";
+        }
     }
 }

@@ -12,6 +12,7 @@ namespace PropertyBinder
         public static bool DebugMode { get; set; }
         public static PropertyBinder.CommandCanExecuteCheckMode DefaultCommandCanExecuteCheckMode { get; set; }
         public static PropertyBinder.IExpressionCompiler ExpressionCompiler { get; set; }
+        public static bool SupportTransactions { get; set; }
         public static System.IDisposable BeginTransaction() { }
         public static void SetExceptionHandler(System.EventHandler<PropertyBinder.ExceptionEventArgs> exceptionHandler) { }
         public static void SetTracer(PropertyBinder.Diagnostics.IBindingTracer tracer) { }
@@ -78,6 +79,7 @@ namespace PropertyBinder
         public System.Exception Exception { get; }
         public bool Handled { get; set; }
         public string StampedStr { get; }
+        public override string ToString() { }
     }
     public interface IConditionalRuleBuilderPhase1<T, TContext> : PropertyBinder.IConditionalRuleBuilderPhase2<T, TContext>
         where TContext :  class

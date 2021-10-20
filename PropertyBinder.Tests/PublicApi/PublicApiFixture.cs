@@ -15,7 +15,7 @@ namespace PropertyBinder.Tests
             string fileName = Path.Combine(Environment.CurrentDirectory, @"..\..\..\PublicApi\PublicApi_NET45.txt");
 #endif
 
-#if NETSTANDARD 
+#if NETCOREAPP 
             string fileName = Path.Combine(Environment.CurrentDirectory, @"..\..\..\PublicApi\PublicApi_NETSTANDARD21.txt");
 #endif
 

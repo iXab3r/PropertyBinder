@@ -11,6 +11,7 @@ namespace PropertyBinder.Tests
         {
             try
             {
+                Binder.SupportTransactions = true;
                 Binder.DebugMode = useDebugMode;
                 _binder.Bind(x => x.String + x.Int.ToString()).To(x => x.String2);
                 using (_binder.Attach(_stub))

@@ -1,10 +1,6 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using PropertyBinder.Diagnostics;
-using PropertyBinder.Helpers;
 
 namespace PropertyBinder.Engine
 {
@@ -12,8 +8,9 @@ namespace PropertyBinder.Engine
     {
         [ThreadStatic]
         private static BindingExecutor _instance;
+        
+        private static EventHandler<ExceptionEventArgs> _exceptionHandler;
         protected static IBindingTracer _tracer;
-        protected static EventHandler<ExceptionEventArgs> _exceptionHandler;
 
         private static BindingExecutor Instance
         {
@@ -23,7 +20,9 @@ namespace PropertyBinder.Engine
 
         public static BindingExecutor ResetInstance()
         {
-            _instance = (Binder.DebugMode || _tracer != null) ? (BindingExecutor)new DebugModeBindingExecutor() : new ProductionModeBindingExecutor();
+            _instance = Binder.SupportTransactions 
+                ? Binder.DebugMode || _tracer != null ? new DebugModeBindingExecutor() : new ProductionModeBindingExecutor()
+                : new ImmediateBindingExecutor();
             return _instance;
         }
 
@@ -61,257 +60,35 @@ namespace PropertyBinder.Engine
         protected abstract void SuspendInternal();
 
         protected abstract void ResumeInternal();
-    }
 
-    internal sealed class ProductionModeBindingExecutor : BindingExecutor
-    {
-        private readonly LiteQueue<BindingReference> _scheduledBindings = new LiteQueue<BindingReference>();
-        private int _executeLock;
-
-        protected override void SuspendInternal()
+        protected virtual void HandleExecutionException(Exception ex, BindingReference binding)
         {
-            ++_executeLock;
-        }
-
-        protected override void ResumeInternal()
-        {
-            if (_executeLock == 0)
+            string stampResult;
+            try 
             {
-                throw new InvalidOperationException("Binder in not currently in transaction mode");
+                stampResult = binding.GetStamp();
+            }
+            catch(Exception stampEx)
+            {
+                stampResult = $"Failed to get stamp: {stampEx}";
             }
 
-            --_executeLock;
-            ExecuteInternal(null, new int[0]);
-        }
-
-        protected override void ExecuteInternal(BindingMap map, int[] bindings)
-        {
-            _scheduledBindings.Reserve(bindings.Length);
-            foreach (var i in bindings)
+            DebugContext debugContext;
+            try 
             {
-                if (!map.Schedule[i])
-                {
-                    map.Schedule[i] = true;
-                    _scheduledBindings.EnqueueUnsafe(new BindingReference(map, i));
-                }
+                debugContext = binding.DebugContext;
             }
-
-            if (_executeLock == 0)
+            catch(Exception)
             {
-                ++_executeLock;
-                try
-                {
-                    while (_scheduledBindings.Count > 0)
-                    {
-                        ref BindingReference binding = ref _scheduledBindings.DequeueRef();
-                        binding.UnSchedule();
-                        try
-                        {
-                            binding.Execute();
-                        }
-                        catch (Exception e)
-                        {
-                            ExceptionEventArgs exceptionEventArgs;
-                            try
-                            {
-                                exceptionEventArgs = new ExceptionEventArgs(e, binding.GetStamp(), binding.DebugContext);
-                            }
-                            catch
-                            {
-                                exceptionEventArgs = new ExceptionEventArgs(e, "", binding.DebugContext);
-                            }
-                            _exceptionHandler?.Invoke(null, exceptionEventArgs);
-                            if (!exceptionEventArgs.Handled)
-                            {
-                                throw;
-                            }
-                        }
-                    }
-                }
-                catch (Exception)
-                {
-                    while (_scheduledBindings.Count > 0)
-                    {
-                        _scheduledBindings.DequeueRef().UnSchedule();
-                    }
-                    throw;
-                }
-                finally
-                {
-                    --_executeLock;
-                }
+                debugContext = default;
             }
-        }
-    }
-
-    internal sealed class DebugModeBindingExecutor : BindingExecutor
-    {
-        private readonly Queue<ScheduledBinding> _scheduledBindings = new Queue<ScheduledBinding>();
-        private ScheduledBinding _executingBinding;
-
-        protected override void SuspendInternal()
-        {
-            _executingBinding = new ScheduledBinding(new BindingReference(new TransactionBindingMap<ScheduledBinding>(_executingBinding), 0), _executingBinding);
-        }
-
-        protected override void ResumeInternal()
-        {
-            _executingBinding = _executingBinding?.Parent;
-            ExecuteInternal(null, new int[0]);
-        }
-
-        private sealed class ScheduledBinding
-        {
-            public ScheduledBinding(BindingReference binding, ScheduledBinding parent)
+                        
+            var exceptionEventArgs = new ExceptionEventArgs(ex, stampResult, debugContext);
+            _exceptionHandler?.Invoke(null, exceptionEventArgs);
+            if (!exceptionEventArgs.Handled)
             {
-                Binding = binding;
-                Parent = parent;
+                throw new Exception($"Binder executor exception: {exceptionEventArgs}", ex);
             }
-
-            public readonly BindingReference Binding;
-
-            public readonly ScheduledBinding Parent;
-        }
-
-        protected override void ExecuteInternal(BindingMap map, int[] bindings)
-        {
-            foreach (var i in bindings)
-            {
-                var binding = new BindingReference(map, i);
-                if (binding.Schedule())
-                {
-                    _scheduledBindings.Enqueue(new ScheduledBinding(binding, _executingBinding));
-                    _tracer?.OnScheduled(map.GetDebugContext(i).Description);
-                }
-                else
-                {
-                    _tracer?.OnIgnored(map.GetDebugContext(i).Description);
-                }
-            }
-
-            if (_executingBinding == null)
-            {
-                try
-                {
-                    while (_scheduledBindings.Count > 0)
-                    {
-                        _executingBinding = _scheduledBindings.Dequeue();
-                        _executingBinding.Binding.UnSchedule();
-                        var description = _executingBinding.Binding.DebugContext?.Description;
-                        _tracer?.OnStarted(description);
-
-                        try
-                        {
-                            if (Binder.DebugMode)
-                            {
-                                var tracedBindings = TraceBindings().ToArray();
-                                var f = tracedBindings[0].DebugContext.VirtualFrame;
-                                tracedBindings[0].DebugContext.VirtualFrame(tracedBindings, 0);
-                            }
-                            else
-                            {
-                                _executingBinding.Binding.Execute();
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _tracer?.OnException(ex);
-                            ExceptionEventArgs ea;
-                            try
-                            {
-                                ea = new ExceptionEventArgs(ex, _executingBinding.Binding.GetStamp(), _executingBinding.Binding.DebugContext);
-                            }
-                            catch
-                            {
-                                ea = new ExceptionEventArgs(ex, "", _executingBinding.Binding.DebugContext);
-                            }
-                            _exceptionHandler?.Invoke(this, ea);
-                            if (!ea.Handled)
-                            {
-                                throw;
-                            }
-                        }
-
-                        _tracer?.OnEnded(description);
-                    }
-                }
-                catch (Exception)
-                {
-                    foreach (var binding in _scheduledBindings)
-                    {
-                        binding.Binding.UnSchedule();
-                    }
-                    _scheduledBindings.Clear();
-                    throw;
-                }
-                finally
-                {
-                    _executingBinding = null;
-                }
-            }
-        }
-
-        public IEnumerable<BindingReference> TraceBindings()
-        {
-            var bindings = new List<BindingReference>();
-            var current = _executingBinding;
-
-            while (current != null)
-            {
-                bindings.Add(current.Binding);
-                current = current.Parent;
-            }
-
-            bindings.Reverse();
-
-            return bindings;
-        }
-    }
-
-    internal struct BindingReference
-    {
-        public readonly BindingMap Map;
-        public readonly int Index;
-
-        public BindingReference(BindingMap map, int index)
-        {
-            Map = map;
-            Index = index;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Schedule()
-        {
-            if (!Map.Schedule[Index])
-            {
-                Map.Schedule[Index] = true;
-                return true;
-            }
-
-            return false;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void UnSchedule()
-        {
-            Map.Schedule[Index] = false;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Execute()
-        {
-            Map.Execute(Index);
-        }
-
-        public string GetStamp()
-        {
-            return Map.GetStamp(Index);
-        }
-
-        public DebugContext DebugContext
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Map.GetDebugContext(Index);
         }
     }
 }

@@ -3,11 +3,12 @@
         <TargetFrameworks>net45;netstandard2.1</TargetFrameworks>
         <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
         <Platforms>AnyCPU;x64</Platforms>
+        <LangVersion>latest</LangVersion>
     </PropertyGroup>
     <ItemGroup>
-        <PackageReference Include="System.Reflection.Emit" Version="4.7.0"/>
+        <PackageReference Include="System.Reflection.Emit" Version="4.7.0" />
     </ItemGroup>
     <ItemGroup Condition="$(DefineConstants.Contains('NETSTANDARD'))">
-        <PackageReference Include="Lokad.ILPack" Version="0.1.6"/>
+        <PackageReference Include="Lokad.ILPack" Version="0.1.6" />
     </ItemGroup>
 </Project>

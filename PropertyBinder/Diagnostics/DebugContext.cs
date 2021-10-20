@@ -17,6 +17,6 @@ namespace PropertyBinder.Diagnostics
 
         public string Description { get; }
 
-        public Action<BindingReference[], int> VirtualFrame => _virtualFrame ?? (_virtualFrame = VirtualFrameCompiler.CreateMethodFrame(Description, _frame));
+        public Action<BindingReference[], int> VirtualFrame => _virtualFrame ??= VirtualFrameCompiler.CreateMethodFrame(Description, _frame);
     }
 }
