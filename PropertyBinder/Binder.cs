@@ -18,6 +18,7 @@ namespace PropertyBinder
         private readonly List<BindingAction> _actions;
         private IWatcherFactory<TContext> _factory;
         private BindingAction[] _compactedActions;
+        private EventHandler<ExceptionEventArgs> _exceptionHandler;
 
         private Binder(IBindingNodeBuilder<TContext> rootNode, List<BindingAction> actions)
         {
@@ -36,6 +37,16 @@ namespace PropertyBinder
             return new Binder<TNewContext>(
                 _rootNode.CloneForDerivedParentType<TNewContext>(),
                 _actions.Select(x => x != null ? new Binder<TNewContext>.BindingAction(x.Action, x.Key, x.DebugContext, x.RunOnAttach, x.StampExpression) : null).ToList());
+        }
+
+        public Binder<TContext> WithExceptionHandler(EventHandler<ExceptionEventArgs> exceptionHandler)
+        {
+            if (_exceptionHandler != null)
+            {
+                throw new InvalidOperationException($"Exception handler is already set for {this}");
+            }
+            _exceptionHandler = exceptionHandler;
+            return this;
         }
 
         public Binder<TContext> Clone()
@@ -123,7 +134,7 @@ namespace PropertyBinder
                 _compactedActions = compactedActions.ToArray();
 
                 _factory = Binder.AllowReuseOfWatchers
-                    ? (IWatcherFactory<TContext>)new ReusableWatcherFactory<TContext>(_compactedActions, _rootNode.CreateBindingNode(remap))
+                    ? new ReusableWatcherFactory<TContext>(_compactedActions, _rootNode.CreateBindingNode(remap))
                     : new DefaultWatcherFactory<TContext>(_actions.ToArray(), _rootNode.CreateBindingNode(remap));
             }
 
@@ -131,31 +142,39 @@ namespace PropertyBinder
 
             foreach (var action in _compactedActions)
             {
-                if (action.RunOnAttach)
+                if (!action.RunOnAttach)
                 {
-                    try
-                    {
-                        action.Action(context);
-                    }
-                    catch (Exception ex)
-                    {
-                        string stampResult;
-                        try 
-                        {
-                            var stamped = ExpressionHelpers.Stamped<TContext>(action.StampExpression);
-                            stampResult = stamped?.Invoke(context) ?? "NULL";
-                        }
-                        catch(Exception stampEx)
-                        {
-                            stampResult = $"Failed: {stampEx}";
-                        }
-                        var debugDetails = new { StampExpression = action.StampExpression.ToString(), StampInvokeResult = stampResult, Context = context }.ToString();
+                    continue;
+                }
 
-                        var exceptionEventArgs = new ExceptionEventArgs(ex, debugDetails);
+                try
+                {
+                    action.Action(context);
+                }
+                catch (Exception ex)
+                {
+                    string stampResult;
+                    try 
+                    {
+                        var stamped = ExpressionHelpers.Stamped<TContext>(action.StampExpression);
+                        stampResult = stamped?.Invoke(context) ?? "NULL";
+                    }
+                    catch(Exception stampEx)
+                    {
+                        stampResult = $"Failed: {stampEx}";
+                    }
+                    var debugDetails = new { StampExpression = action.StampExpression.ToString(), StampInvokeResult = stampResult, Context = context }.ToString();
+
+                    var exception = new BindingException($"Binder exception, details: {debugDetails} - {ex}", ex);
+                    var exceptionEventArgs = new ExceptionEventArgs(exception, debugDetails);
+                    
+                    _exceptionHandler?.Invoke(this, exceptionEventArgs);
+                    if (!exceptionEventArgs.Handled)
+                    {
                         Binder.ExceptionHandler?.Invoke(this, exceptionEventArgs);
                         if (!exceptionEventArgs.Handled)
                         {
-                            throw new Exception($"Binder exception - {debugDetails}", ex);
+                            throw exception;
                         }
                     }
                 }

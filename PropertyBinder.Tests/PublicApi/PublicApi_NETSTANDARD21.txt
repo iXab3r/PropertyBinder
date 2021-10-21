@@ -46,6 +46,13 @@ namespace PropertyBinder
             where TNewContext :  class, TContext { }
         public PropertyBinder.Binder<TContext> Clone() { }
         public System.Action<TContext> GetActionByKey(string key) { }
+        public PropertyBinder.Binder<TContext> WithExceptionHandler(System.EventHandler<PropertyBinder.ExceptionEventArgs> exceptionHandler) { }
+    }
+    public class BindingException : System.Exception
+    {
+        public BindingException() { }
+        public BindingException(string message) { }
+        public BindingException(string message, System.Exception inner) { }
     }
     public sealed class BindingFrame
     {

@@ -83,11 +83,12 @@ namespace PropertyBinder.Engine
                 debugContext = default;
             }
                         
-            var exceptionEventArgs = new ExceptionEventArgs(ex, stampResult, debugContext);
+            var exception = new BindingException($"BindingExecutor exception, description: {debugContext?.Description}, stamp: {stampResult} - {ex}", ex);
+            var exceptionEventArgs = new ExceptionEventArgs(exception, stampResult, debugContext);
             _exceptionHandler?.Invoke(null, exceptionEventArgs);
             if (!exceptionEventArgs.Handled)
             {
-                throw new Exception($"Binder executor exception: {exceptionEventArgs}", ex);
+                throw exception;
             }
         }
     }

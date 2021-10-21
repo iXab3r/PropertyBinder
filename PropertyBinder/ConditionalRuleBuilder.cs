@@ -58,7 +58,7 @@ namespace PropertyBinder
         {
             if (_hasElseClause)
             {
-                throw new Exception("Current conditional binding already has an 'Else' clause");
+                throw new InvalidOperationException("Current conditional binding already has an 'Else' clause");
             }
             _clauses.Add(Tuple.Create((Expression)null, targetExpression.GetBodyWithReplacedParameter(_contextParameter), new DebugContextBuilder(targetExpression.Body, string.Format(" (branch {0})", _clauses.Count))));
             _hasElseClause = true;
