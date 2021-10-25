@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="$(DefineConstants.Contains('NETCOREAPP'))">
-    <ProjectReference Include="..\PropertyBinder\PropertyBinder.csproj" >
+    <ProjectReference Include="..\PropertyBinder\PropertyBinder.csproj">
       <Project>{c5b0e4fa-9b98-4fd3-a650-782161655466}</Project>
       <SetTargetFramework>TargetFramework=netstandard2.1</SetTargetFramework>
       <Name>PropertyBinder</Name>
@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="$(DefineConstants.Contains('NETFRAMEWORK'))">
-    <ProjectReference Include="..\PropertyBinder\PropertyBinder.csproj" >
+    <ProjectReference Include="..\PropertyBinder\PropertyBinder.csproj">
       <Project>{c5b0e4fa-9b98-4fd3-a650-782161655466}</Project>
       <SetTargetFramework>TargetFramework=net45</SetTargetFramework>
       <Name>PropertyBinder</Name>

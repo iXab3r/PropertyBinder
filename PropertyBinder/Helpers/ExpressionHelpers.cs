@@ -87,12 +87,27 @@ namespace PropertyBinder.Helpers
             return false;
         }
 
+        public static bool IsConversion(this UnaryExpression expression)
+        {
+            return expression is { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked };
+        }
+
+        public static Expression GetConvertedOperand(this UnaryExpression expression)
+        {
+            var nestedUnaryExpression = expression;
+            while (nestedUnaryExpression.Operand is UnaryExpression nested && nested.IsConversion())
+            {
+                nestedUnaryExpression = nested;
+            }
+            return nestedUnaryExpression.Operand;
+        }
+        
         public static string GetTargetKey<TContext, T>(this Expression<Func<TContext, T>> targetExpression)
         {
-            var body = targetExpression.Body as MemberExpression;
-            if (body == null)
+            var body = targetExpression.Body is UnaryExpression unaryExpression && unaryExpression.IsConversion() ? unaryExpression.GetConvertedOperand() : targetExpression.Body;
+            if (body is not MemberExpression)
             {
-                throw new ArgumentOutOfRangeException("targetExpression", "Target expression body must be a member expression");
+                throw new ArgumentOutOfRangeException("targetExpression", $"Target expression body must be a member expression, but was {body}");
             }
 
             var path = body.GetPathToParameter(targetExpression.Parameters[0].Type);

@@ -468,7 +468,44 @@ namespace PropertyBinder.Tests
                 _stub.Int.ShouldBe(1);
             }
         }
+        
+        [Test]
+        public void ShouldBindUsingImplicitConversion()
+        {
+            var binder = new Binder<UniversalStub>();
+            binder.Bind(x => true).To(x => x.AnnotatedFlag);
 
+            using (binder.Attach(_stub))
+            {
+                ((bool)_stub.AnnotatedFlag).ShouldBe(true);
+            }
+        }
+        
+        [Test]
+        public void ShouldBindToUsingChainImplicitConversion()
+        {
+            var binder = new Binder<UniversalStub>();
+            binder.Bind(x => x.ReturnValue(true)).To(x => ((bool?)(bool)x.AnnotatedFlag));
+
+            using (binder.Attach(_stub))
+            {
+                ((bool)_stub.AnnotatedFlag).ShouldBe(true);
+            }
+        }
+
+        [Test]
+        public void ShouldBindNestedUsingImplicitConversion()
+        {
+            var binder = new Binder<UniversalStub>();
+            binder.Bind(x => true).To(x => x.Nested.AnnotatedFlag);
+
+            _stub.Nested = new UniversalStub();
+            using (binder.Attach(_stub))
+            {
+                ((bool)_stub.Nested.AnnotatedFlag).ShouldBe(true);
+            }
+        }
+        
         private static void ActionBinding(UniversalStub stub, int source)
         {
             stub.Int = source;

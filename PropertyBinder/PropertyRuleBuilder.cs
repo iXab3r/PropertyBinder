@@ -37,8 +37,23 @@ namespace PropertyBinder
             {
                 source = new NullPropagationVisitor(_sourceExpression.Parameters[0]).Visit(source);
             }
-
-            var target = targetExpression.GetBodyWithReplacedParameter(contextParameter);
+            
+            Expression target;
+            Expression targetParent;
+            
+            if (targetExpression.Body is UnaryExpression targetUnaryExpression)
+            {
+                var targetMemberExpression = (MemberExpression)targetUnaryExpression.GetConvertedOperand();
+                target = new ReplaceParameterVisitor(targetExpression.Parameters[0], contextParameter).Visit(targetMemberExpression);
+                targetParent = targetMemberExpression.Expression; 
+            }
+            else
+            {
+                target = targetExpression.GetBodyWithReplacedParameter(contextParameter);
+                targetParent = ((MemberExpression) targetExpression.Body).Expression;
+            }
+            
+            var key = _key ?? targetExpression.GetTargetKey();
             if (!target.Type.IsAssignableFrom(source.Type) || source.Type.IsValueType && Nullable.GetUnderlyingType(target.Type) == source.Type)
             {
                 source = Expression.Convert(source, target.Type);
@@ -50,9 +65,6 @@ namespace PropertyBinder
                     source),
                 contextParameter);
 
-            var key = _key ?? targetExpression.GetTargetKey();
-
-            var targetParent = ((MemberExpression) targetExpression.Body).Expression;
             var targetParameter = targetExpression.Parameters[0];
             if (targetParent != targetParameter)
             {

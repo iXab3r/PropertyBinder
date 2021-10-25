@@ -15,6 +15,7 @@ namespace PropertyBinder.Tests
         decimal Decimal { get; set; }
         double Double { get; set; }
         bool Flag { get; set; }
+        AnnotatedBoolean AnnotatedFlag { get; set; }
         string String { get; set; }
         string String2 { get; set; }
         DateTime DateTime { get; set; }
@@ -29,19 +30,21 @@ namespace PropertyBinder.Tests
 
     internal class UniversalStub : IUniversalStub
     {
+        public string StringField;
+
+        public UniversalStub StubField;
+
         public UniversalStub()
         {
             Collection = new ObservableCollection<UniversalStub>();
         }
 
-        public string StringField;
-
-        public UniversalStub StubField;
+        public IUniversalStub NestedInterface { get; set; }
 
         public int Int { get; set; }
 
         public int? NullableInt { get; set; }
-        
+
         public bool? NullableBool { get; set; }
 
         public decimal Decimal { get; set; }
@@ -49,6 +52,8 @@ namespace PropertyBinder.Tests
         public double Double { get; set; }
 
         public bool Flag { get; set; }
+        
+        public AnnotatedBoolean AnnotatedFlag { get; set; }
 
         public string String { get; set; }
 
@@ -57,8 +62,6 @@ namespace PropertyBinder.Tests
         public DateTime DateTime { get; set; }
 
         public UniversalStub Nested { get; set; }
-        
-        public IUniversalStub NestedInterface { get; set; }
 
         public KeyValuePair<string, UniversalStub> Pair { get; set; }
 
@@ -103,7 +106,11 @@ namespace PropertyBinder.Tests
 
         public void HandleTestEvent(object sender, EventArgs args)
         {
-            
+        }
+
+        public T ReturnValue<T>(T value)
+        {
+            return value;
         }
     }
 }
