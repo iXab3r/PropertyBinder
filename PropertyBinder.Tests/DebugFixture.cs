@@ -1,8 +1,4 @@
-using System;
-using System.IO;
-using System.Reflection;
 using NUnit.Framework;
-using PropertyBinder.Diagnostics;
 using Shouldly;
 
 namespace PropertyBinder.Tests

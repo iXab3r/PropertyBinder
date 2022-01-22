@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Linq.Expressions;
 using PropertyBinder.Decompiler;
 using PropertyBinder.Diagnostics;
