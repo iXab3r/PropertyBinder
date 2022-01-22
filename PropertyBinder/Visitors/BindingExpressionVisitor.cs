@@ -3,118 +3,117 @@ using System.Linq.Expressions;
 using PropertyBinder.Engine;
 using PropertyBinder.Helpers;
 
-namespace PropertyBinder.Visitors
+namespace PropertyBinder.Visitors;
+
+internal sealed class BindingExpressionVisitor<TContext> : ExpressionVisitor
+    where TContext : class
 {
-    internal sealed class BindingExpressionVisitor<TContext> : ExpressionVisitor
-        where TContext : class
+    private readonly IBindingNodeBuilder _rootNode;
+    private readonly Type _rootParameterType;
+    private readonly int _actionIndex;
+
+    public BindingExpressionVisitor(IBindingNodeBuilder rootNode, Type rootParameterType, int actionIndex)
     {
-        private readonly IBindingNodeBuilder _rootNode;
-        private readonly Type _rootParameterType;
-        private readonly int _actionIndex;
+        _rootNode = rootNode;
+        _rootParameterType = rootParameterType;
+        _actionIndex = actionIndex;
+    }
 
-        public BindingExpressionVisitor(IBindingNodeBuilder rootNode, Type rootParameterType, int actionIndex)
+    protected override Expression VisitMember(MemberExpression expr)
+    {
+        // accessors
+        if (TryBindPath(expr))
         {
-            _rootNode = rootNode;
-            _rootParameterType = rootParameterType;
-            _actionIndex = actionIndex;
+            return expr;
         }
 
-        protected override Expression VisitMember(MemberExpression expr)
-        {
-            // accessors
-            if (TryBindPath(expr))
-            {
-                return expr;
-            }
+        return base.VisitMember(expr);
+    }
 
-            return base.VisitMember(expr);
+    protected override Expression VisitMethodCall(MethodCallExpression expr)
+    {
+        // indexers
+        if (TryBindPath(expr))
+        {
+            return expr;
         }
 
-        protected override Expression VisitMethodCall(MethodCallExpression expr)
+        // collection aggregates
+        foreach (var arg in expr.Arguments)
         {
-            // indexers
-            if (TryBindPath(expr))
+            var collectionItemType = arg.Type.ResolveCollectionItemType();
+            if (collectionItemType == null)
             {
-                return expr;
+                continue;
             }
 
-            // collection aggregates
-            foreach (var arg in expr.Arguments)
+            var path = arg.GetPathToParameter(_rootParameterType);
+            if (path == null)
             {
-                var collectionItemType = arg.Type.ResolveCollectionItemType();
-                if (collectionItemType == null)
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                var path = arg.GetPathToParameter(_rootParameterType);
-                if (path == null)
-                {
-                    continue;
-                }
+            var node = _rootNode;
+            foreach (var entry in path)
+            {
+                node = node.GetSubNode(entry);
+            }
 
-                var node = _rootNode;
-                foreach (var entry in path)
-                {
-                    node = node.GetSubNode(entry);
-                }
+            var collectionNode = node.GetCollectionNode(collectionItemType);
+            if (collectionNode == null)
+            {
+                continue;
+            }
 
-                var collectionNode = node.GetCollectionNode(collectionItemType);
-                if (collectionNode == null)
-                {
-                    continue;
-                }
+            collectionNode.AddAction(_actionIndex);
 
-                collectionNode.AddAction(_actionIndex);
-
-                BindingExpressionVisitor<TContext> itemVisitor = null;
-                foreach (var arg2 in expr.Arguments)
+            BindingExpressionVisitor<TContext> itemVisitor = null;
+            foreach (var arg2 in expr.Arguments)
+            {
+                if (arg2.NodeType == ExpressionType.Lambda)
                 {
-                    if (arg2.NodeType == ExpressionType.Lambda)
+                    var lambda = (LambdaExpression) arg2;
+                    if (lambda.Parameters.Count == 1 && lambda.Parameters[0].Type.IsAssignableFrom(collectionItemType))
                     {
-                        var lambda = (LambdaExpression) arg2;
-                        if (lambda.Parameters.Count == 1 && lambda.Parameters[0].Type.IsAssignableFrom(collectionItemType))
+                        if (itemVisitor == null)
                         {
-                            if (itemVisitor == null)
-                            {
-                                itemVisitor = new BindingExpressionVisitor<TContext>(collectionNode.GetItemNode(), collectionItemType, _actionIndex);
-                            }
-                            itemVisitor.Visit(lambda.Body);
+                            itemVisitor = new BindingExpressionVisitor<TContext>(collectionNode.GetItemNode(), collectionItemType, _actionIndex);
                         }
+                        itemVisitor.Visit(lambda.Body);
                     }
                 }
             }
-
-            return base.VisitMethodCall(expr);
         }
 
-        private bool TryBindPath(Expression expr)
+        return base.VisitMethodCall(expr);
+    }
+
+    private bool TryBindPath(Expression expr)
+    {
+        var path = expr.GetPathToParameter(_rootParameterType);
+        if (path != null)
         {
-            var path = expr.GetPathToParameter(_rootParameterType);
-            if (path != null)
+            var node = _rootNode;
+            BindableMember parentMember = null;
+
+            foreach (var entry in path)
             {
-                var node = _rootNode;
-                BindableMember parentMember = null;
-
-                foreach (var entry in path)
+                if (parentMember != null)
                 {
-                    if (parentMember != null)
-                    {
-                        node = node.GetSubNode(parentMember);
-                    }
-
-                    if (entry.CanSubscribe)
-                    {
-                        node.AddAction(entry.Name, _actionIndex);
-                    }
-
-                    parentMember = entry;
+                    node = node.GetSubNode(parentMember);
                 }
 
-                return true;
+                if (entry.CanSubscribe)
+                {
+                    node.AddAction(entry.Name, _actionIndex);
+                }
+
+                parentMember = entry;
             }
 
-            return false;
+            return true;
         }
+
+        return false;
     }
 }

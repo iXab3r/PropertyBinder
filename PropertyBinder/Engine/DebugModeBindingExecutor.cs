@@ -2,118 +2,117 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace PropertyBinder.Engine
+namespace PropertyBinder.Engine;
+
+internal sealed class DebugModeBindingExecutor : BindingExecutor
 {
-    internal sealed class DebugModeBindingExecutor : BindingExecutor
+    private readonly Queue<ScheduledBinding> _scheduledBindings = new Queue<ScheduledBinding>();
+    private ScheduledBinding _executingBinding;
+
+    protected override void SuspendInternal()
     {
-        private readonly Queue<ScheduledBinding> _scheduledBindings = new Queue<ScheduledBinding>();
-        private ScheduledBinding _executingBinding;
+        _executingBinding = new ScheduledBinding(new BindingReference(new TransactionBindingMap<ScheduledBinding>(_executingBinding), 0), _executingBinding);
+    }
 
-        protected override void SuspendInternal()
+    protected override void ResumeInternal()
+    {
+        _executingBinding = _executingBinding?.Parent;
+        ExecuteInternal(null, new int[0]);
+    }
+
+    private sealed class ScheduledBinding
+    {
+        public ScheduledBinding(BindingReference binding, ScheduledBinding parent)
         {
-            _executingBinding = new ScheduledBinding(new BindingReference(new TransactionBindingMap<ScheduledBinding>(_executingBinding), 0), _executingBinding);
+            Binding = binding;
+            Parent = parent;
         }
 
-        protected override void ResumeInternal()
+        public readonly BindingReference Binding;
+
+        public readonly ScheduledBinding Parent;
+    }
+
+    protected override void ExecuteInternal(BindingMap map, int[] bindings)
+    {
+        foreach (var i in bindings)
         {
-            _executingBinding = _executingBinding?.Parent;
-            ExecuteInternal(null, new int[0]);
+            var binding = new BindingReference(map, i);
+            if (binding.Schedule())
+            {
+                _scheduledBindings.Enqueue(new ScheduledBinding(binding, _executingBinding));
+                _tracer?.OnScheduled(map.GetDebugContext(i).Description);
+            }
+            else
+            {
+                _tracer?.OnIgnored(map.GetDebugContext(i).Description);
+            }
         }
 
-        private sealed class ScheduledBinding
+        if (_executingBinding != null)
         {
-            public ScheduledBinding(BindingReference binding, ScheduledBinding parent)
-            {
-                Binding = binding;
-                Parent = parent;
-            }
-
-            public readonly BindingReference Binding;
-
-            public readonly ScheduledBinding Parent;
+            return;
         }
 
-        protected override void ExecuteInternal(BindingMap map, int[] bindings)
+        try
         {
-            foreach (var i in bindings)
+            while (_scheduledBindings.Count > 0)
             {
-                var binding = new BindingReference(map, i);
-                if (binding.Schedule())
-                {
-                    _scheduledBindings.Enqueue(new ScheduledBinding(binding, _executingBinding));
-                    _tracer?.OnScheduled(map.GetDebugContext(i).Description);
-                }
-                else
-                {
-                    _tracer?.OnIgnored(map.GetDebugContext(i).Description);
-                }
-            }
+                _executingBinding = _scheduledBindings.Dequeue();
+                _executingBinding.Binding.UnSchedule();
+                var description = _executingBinding.Binding.DebugContext?.Description;
+                _tracer?.OnStarted(description);
 
-            if (_executingBinding != null)
-            {
-                return;
-            }
-
-            try
-            {
-                while (_scheduledBindings.Count > 0)
+                try
                 {
-                    _executingBinding = _scheduledBindings.Dequeue();
-                    _executingBinding.Binding.UnSchedule();
-                    var description = _executingBinding.Binding.DebugContext?.Description;
-                    _tracer?.OnStarted(description);
-
-                    try
+                    if (Binder.DebugMode)
                     {
-                        if (Binder.DebugMode)
-                        {
-                            var tracedBindings = TraceBindings().ToArray();
-                            tracedBindings[0].DebugContext.VirtualFrame(tracedBindings, 0);
-                        }
-                        else
-                        {
-                            _executingBinding.Binding.Execute();
-                        }
+                        var tracedBindings = TraceBindings().ToArray();
+                        tracedBindings[0].DebugContext.VirtualFrame(tracedBindings, 0);
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        _tracer?.OnException(ex);
-                        HandleExecutionException(ex, _executingBinding.Binding);
+                        _executingBinding.Binding.Execute();
                     }
-
-                    _tracer?.OnEnded(description);
                 }
-            }
-            catch (Exception)
-            {
-                foreach (var binding in _scheduledBindings)
+                catch (Exception ex)
                 {
-                    binding.Binding.UnSchedule();
+                    _tracer?.OnException(ex);
+                    HandleExecutionException(ex, _executingBinding.Binding);
                 }
 
-                _scheduledBindings.Clear();
-                throw;
-            }
-            finally
-            {
-                _executingBinding = null;
+                _tracer?.OnEnded(description);
             }
         }
-
-        public IEnumerable<BindingReference> TraceBindings()
+        catch (Exception)
         {
-            var bindings = new List<BindingReference>();
-            var current = _executingBinding;
-
-            while (current != null)
+            foreach (var binding in _scheduledBindings)
             {
-                bindings.Add(current.Binding);
-                current = current.Parent;
+                binding.Binding.UnSchedule();
             }
 
-            bindings.Reverse();
-
-            return bindings;
+            _scheduledBindings.Clear();
+            throw;
         }
+        finally
+        {
+            _executingBinding = null;
+        }
+    }
+
+    public IEnumerable<BindingReference> TraceBindings()
+    {
+        var bindings = new List<BindingReference>();
+        var current = _executingBinding;
+
+        while (current != null)
+        {
+            bindings.Add(current.Binding);
+            current = current.Parent;
+        }
+
+        bindings.Reverse();
+
+        return bindings;
     }
 }

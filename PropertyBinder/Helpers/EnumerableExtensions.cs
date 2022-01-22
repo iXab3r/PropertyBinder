@@ -2,67 +2,66 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace PropertyBinder.Helpers
+namespace PropertyBinder.Helpers;
+
+internal static class EnumerableExtensions
 {
-    internal static class EnumerableExtensions
+    public static IReadOnlyDictionary<TKey, TValue> ToReadOnlyDictionary<TSource, TKey, TValue>(this ICollection<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TValue> valueSelector)
     {
-        public static IReadOnlyDictionary<TKey, TValue> ToReadOnlyDictionary<TSource, TKey, TValue>(this ICollection<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TValue> valueSelector)
+        if (source.Count == 1)
         {
-            if (source.Count == 1)
-            {
-                var item = source.ElementAt(0);
-                return new SingleElementDictionary<TKey, TValue>(keySelector(item), valueSelector(item));
-            }
-
-            return source.ToDictionary(keySelector, valueSelector);
+            var item = source.ElementAt(0);
+            return new SingleElementDictionary<TKey, TValue>(keySelector(item), valueSelector(item));
         }
+
+        return source.ToDictionary(keySelector, valueSelector);
+    }
         
-        public static IReadOnlyDictionary<TKey, TValue> ToReadOnlyDictionary2<TSource, TKey, TValue>(this IReadOnlyCollection<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TValue> valueSelector)
+    public static IReadOnlyDictionary<TKey, TValue> ToReadOnlyDictionary2<TSource, TKey, TValue>(this IReadOnlyCollection<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TValue> valueSelector)
+    {
+        if (source.Count == 1)
         {
-            if (source.Count == 1)
-            {
-                var item = source.ElementAt(0);
-                return new SingleElementDictionary<TKey, TValue>(keySelector(item), valueSelector(item));
-            }
-
-            return source.ToDictionary(keySelector, valueSelector);
+            var item = source.ElementAt(0);
+            return new SingleElementDictionary<TKey, TValue>(keySelector(item), valueSelector(item));
         }
 
-        internal static TResult[] CompactSelect<T, TResult>(this T[] source, ICollection<int> indexes)
-            where T : TResult
+        return source.ToDictionary(keySelector, valueSelector);
+    }
+
+    internal static TResult[] CompactSelect<T, TResult>(this T[] source, ICollection<int> indexes)
+        where T : TResult
+    {
+        var res = new TResult[indexes.Count];
+        int j = 0;
+        for (int i = 0; i < res.Length; ++i)
         {
-            var res = new TResult[indexes.Count];
-            int j = 0;
-            for (int i = 0; i < res.Length; ++i)
+            var value = source[indexes.ElementAt(i)];
+            if (value != null)
             {
-                var value = source[indexes.ElementAt(i)];
-                if (value != null)
-                {
-                    res[j++] = value;
-                }
+                res[j++] = value;
             }
-
-            if (j != res.Length)
-            {
-                Array.Resize(ref res, j);
-            }
-
-            return res;
         }
 
-        internal static int[] CompactRemap(this IEnumerable<int> source, int[] map)
+        if (j != res.Length)
         {
-            var res = new List<int>();
-            foreach (var i in source)
-            {
-                var v = map[i];
-                if (v >= 0)
-                {
-                    res.Add(v);
-                }
-            }
-
-            return res.ToArray();
+            Array.Resize(ref res, j);
         }
+
+        return res;
+    }
+
+    internal static int[] CompactRemap(this IEnumerable<int> source, int[] map)
+    {
+        var res = new List<int>();
+        foreach (var i in source)
+        {
+            var v = map[i];
+            if (v >= 0)
+            {
+                res.Add(v);
+            }
+        }
+
+        return res.ToArray();
     }
 }

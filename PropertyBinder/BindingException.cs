@@ -1,19 +1,18 @@
 ﻿using System;
 
-namespace PropertyBinder
+namespace PropertyBinder;
+
+public class BindingException : Exception
 {
-    public class BindingException : Exception
+    public BindingException()
     {
-        public BindingException()
-        {
-        }
+    }
 
-        public BindingException(string message) : base(message)
-        {
-        }
+    public BindingException(string message) : base(message)
+    {
+    }
 
-        public BindingException(string message, Exception inner) : base(message, inner)
-        {
-        }
+    public BindingException(string message, Exception inner) : base(message, inner)
+    {
     }
 }

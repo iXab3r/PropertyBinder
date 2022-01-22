@@ -1,9 +1,8 @@
 ﻿using System;
 
-namespace PropertyBinder
+namespace PropertyBinder;
+
+[AttributeUsage(AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
+public sealed class ImmutableAttribute : Attribute
 {
-    [AttributeUsage(AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
-    public sealed class ImmutableAttribute : Attribute
-    {
-    }
 }

@@ -1,85 +1,84 @@
 ﻿using PropertyBinder.Diagnostics;
 using PropertyBinder.Helpers;
 
-namespace PropertyBinder.Engine
+namespace PropertyBinder.Engine;
+
+internal abstract class BindingMap
 {
-    internal abstract class BindingMap
+    // seems to work faster than BitArray, we don't need to optimize for memory THAT much
+    public readonly bool[] Schedule;
+
+    protected BindingMap(int size)
     {
-        // seems to work faster than BitArray, we don't need to optimize for memory THAT much
-        public readonly bool[] Schedule;
-
-        protected BindingMap(int size)
-        {
-            Schedule = new bool[size];
-        }
-
-        public abstract void Execute(int index);
-
-        public abstract string GetStamp(int index);
-
-        public abstract DebugContext GetDebugContext(int index);
+        Schedule = new bool[size];
     }
 
-    internal sealed class BindingMap<TContext> : BindingMap
-        where TContext : class
+    public abstract void Execute(int index);
+
+    public abstract string GetStamp(int index);
+
+    public abstract DebugContext GetDebugContext(int index);
+}
+
+internal sealed class BindingMap<TContext> : BindingMap
+    where TContext : class
+{
+    public readonly Binder<TContext>.BindingAction[] _actions;
+
+    private TContext _context;
+
+    public BindingMap(Binder<TContext>.BindingAction[] actions)
+        : base(actions.Length)
     {
-        public readonly Binder<TContext>.BindingAction[] _actions;
-
-        private TContext _context;
-
-        public BindingMap(Binder<TContext>.BindingAction[] actions)
-            : base(actions.Length)
-        {
-            _actions = actions;
-        }
-
-        public void SetContext(TContext context)
-        {
-            _context = context;
-        }
-
-        public override void Execute(int index)
-        {
-            _actions[index].Action(_context);
-        }
-
-        public override string GetStamp(int index)
-        {
-            var actionStampExpression = _actions[index]?.StampExpression;
-            return actionStampExpression != null ? ExpressionHelpers.Stamped<TContext>(actionStampExpression).Invoke(_context) ?? "" : "";
-        }
-
-        public override DebugContext GetDebugContext(int index)
-        {
-            return _actions[index].DebugContext;
-        }
+        _actions = actions;
     }
 
-    internal sealed class TransactionBindingMap<T> : BindingMap
+    public void SetContext(TContext context)
     {
-        private static readonly DebugContext TransactionDebugContext = new DebugContext("Transaction", null);
+        _context = context;
+    }
 
-        public readonly T Parent;
+    public override void Execute(int index)
+    {
+        _actions[index].Action(_context);
+    }
 
-        public TransactionBindingMap(T parent)
-            : base(0)
-        {
-            Parent = parent;
-        }
+    public override string GetStamp(int index)
+    {
+        var actionStampExpression = _actions[index]?.StampExpression;
+        return actionStampExpression != null ? ExpressionHelpers.Stamped<TContext>(actionStampExpression).Invoke(_context) ?? "" : "";
+    }
 
-        public override void Execute(int index)
-        {
-        }
+    public override DebugContext GetDebugContext(int index)
+    {
+        return _actions[index].DebugContext;
+    }
+}
 
-        public override string GetStamp(int index)
-        {
-            return "";
-        }
+internal sealed class TransactionBindingMap<T> : BindingMap
+{
+    private static readonly DebugContext TransactionDebugContext = new DebugContext("Transaction", null);
+
+    public readonly T Parent;
+
+    public TransactionBindingMap(T parent)
+        : base(0)
+    {
+        Parent = parent;
+    }
+
+    public override void Execute(int index)
+    {
+    }
+
+    public override string GetStamp(int index)
+    {
+        return "";
+    }
 
 
-        public override DebugContext GetDebugContext(int index)
-        {
-            return TransactionDebugContext;
-        }
+    public override DebugContext GetDebugContext(int index)
+    {
+        return TransactionDebugContext;
     }
 }

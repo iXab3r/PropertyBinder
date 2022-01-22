@@ -1,29 +1,28 @@
 using System;
 using System.Collections.Generic;
 
-namespace PropertyBinder.Engine
+namespace PropertyBinder.Engine;
+
+internal interface ICollectionBindingNodeBuilder
 {
-    internal interface ICollectionBindingNodeBuilder
-    {
-        bool HasBindingActions { get; }
+    bool HasBindingActions { get; }
 
-        IBindingNodeBuilder GetItemNode();
+    IBindingNodeBuilder GetItemNode();
 
-        void AddAction(int actionIndex);
-    }
+    void AddAction(int actionIndex);
+}
 
-    internal interface ICollectionBindingNodeBuilder<in TCollection> : ICollectionBindingNodeBuilder
-    {
-        ICollectionBindingNodeBuilder<TCollection> Clone();
+internal interface ICollectionBindingNodeBuilder<in TCollection> : ICollectionBindingNodeBuilder
+{
+    ICollectionBindingNodeBuilder<TCollection> Clone();
 
-        ICollectionBindingNodeBuilder<TNewCollection> CloneForDerivedParentType<TNewCollection>()
-            where TNewCollection : TCollection;
+    ICollectionBindingNodeBuilder<TNewCollection> CloneForDerivedParentType<TNewCollection>()
+        where TNewCollection : TCollection;
 
-        ICollectionBindingNode<TCollection> CreateBindingNode(int[] actionRemap);
-    }
+    ICollectionBindingNode<TCollection> CreateBindingNode(int[] actionRemap);
+}
 
-    internal interface ICollectionBindingNode<in TCollection>
-    {
-        IObjectWatcher<TCollection> CreateWatcher(BindingMap map);
-    }
+internal interface ICollectionBindingNode<in TCollection>
+{
+    IObjectWatcher<TCollection> CreateWatcher(BindingMap map);
 }

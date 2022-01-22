@@ -3,127 +3,126 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
 
-namespace PropertyBinder.Engine
+namespace PropertyBinder.Engine;
+
+internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollection>
+    where TCollection : IEnumerable<TItem>
 {
-    internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollection>
-        where TCollection : IEnumerable<TItem>
+    private readonly CollectionBindingNode<TCollection, TItem> _node;
+    private readonly BindingMap _map;
+    private readonly IDictionary<TItem, IObjectWatcher<TItem>> _attachedItems = new Dictionary<TItem, IObjectWatcher<TItem>>();
+
+    protected TCollection _target;
+
+    public CollectionWatcher(CollectionBindingNode<TCollection, TItem> node, BindingMap map)
     {
-        private readonly CollectionBindingNode<TCollection, TItem> _node;
-        private readonly BindingMap _map;
-        private readonly IDictionary<TItem, IObjectWatcher<TItem>> _attachedItems = new Dictionary<TItem, IObjectWatcher<TItem>>();
+        _node = node;
+        _map = map;
+    }
 
-        protected TCollection _target;
+    public void Attach(TCollection parent)
+    {
+        DetachItems();
 
-        public CollectionWatcher(CollectionBindingNode<TCollection, TItem> node, BindingMap map)
+        var notify = _target as INotifyCollectionChanged;
+        if (notify != null)
         {
-            _node = node;
-            _map = map;
+            notify.CollectionChanged -= TargetCollectionChanged;
         }
 
-        public void Attach(TCollection parent)
+        _target = parent;
+
+        notify = _target as INotifyCollectionChanged;
+        if (notify != null)
         {
-            DetachItems();
-
-            var notify = _target as INotifyCollectionChanged;
-            if (notify != null)
-            {
-                notify.CollectionChanged -= TargetCollectionChanged;
-            }
-
-            _target = parent;
-
-            notify = _target as INotifyCollectionChanged;
-            if (notify != null)
-            {
-                notify.CollectionChanged += TargetCollectionChanged;
-            }
-
-            if (_target != null && _node.ItemNode != null)
-            {
-                AttachItems();
-            }
+            notify.CollectionChanged += TargetCollectionChanged;
         }
 
-        public void Dispose()
+        if (_target != null && _node.ItemNode != null)
         {
-            Attach(default(TCollection));
+            AttachItems();
+        }
+    }
+
+    public void Dispose()
+    {
+        Attach(default(TCollection));
+    }
+
+    protected virtual void TargetCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (_node.Indexes.Length > 0)
+        {
+            BindingExecutor.Execute(_map, _node.Indexes);
         }
 
-        protected virtual void TargetCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        if (_node.ItemNode != null)
         {
-            if (_node.Indexes.Length > 0)
+            switch (e.Action)
             {
-                BindingExecutor.Execute(_map, _node.Indexes);
-            }
-
-            if (_node.ItemNode != null)
-            {
-                switch (e.Action)
+                case NotifyCollectionChangedAction.Add:
                 {
-                    case NotifyCollectionChangedAction.Add:
-                    {
-                        AttachItem((TItem) e.NewItems[0]);
-                        break;
-                    }
+                    AttachItem((TItem) e.NewItems[0]);
+                    break;
+                }
 
-                    case NotifyCollectionChangedAction.Remove:
-                    {
-                        DetachItem((TItem)e.OldItems[0]); 
-                        break;
-                    }
+                case NotifyCollectionChangedAction.Remove:
+                {
+                    DetachItem((TItem)e.OldItems[0]); 
+                    break;
+                }
 
-                    case NotifyCollectionChangedAction.Replace:
-                    {
-                        DetachItem((TItem)e.OldItems[0]);
-                        AttachItem((TItem)e.NewItems[0]);
-                        break;
-                    }
+                case NotifyCollectionChangedAction.Replace:
+                {
+                    DetachItem((TItem)e.OldItems[0]);
+                    AttachItem((TItem)e.NewItems[0]);
+                    break;
+                }
 
-                    case NotifyCollectionChangedAction.Reset:
-                    {
-                        DetachItems();
-                        AttachItems();
-                        break;
-                    }
+                case NotifyCollectionChangedAction.Reset:
+                {
+                    DetachItems();
+                    AttachItems();
+                    break;
                 }
             }
         }
+    }
 
-        private void DetachItems()
+    private void DetachItems()
+    {
+        foreach (var watcher in _attachedItems.Values)
         {
-            foreach (var watcher in _attachedItems.Values)
-            {
-                watcher.Dispose();
-            }
-            _attachedItems.Clear();
+            watcher.Dispose();
         }
+        _attachedItems.Clear();
+    }
 
-        private void DetachItem(TItem item)
+    private void DetachItem(TItem item)
+    {
+        IObjectWatcher<TItem> watcher;
+        if (item != null && _target != null && !_target.Contains(item) && _attachedItems.TryGetValue(item, out watcher))
         {
-            IObjectWatcher<TItem> watcher;
-            if (item != null && _target != null && !_target.Contains(item) && _attachedItems.TryGetValue(item, out watcher))
-            {
-                watcher.Dispose();
-                _attachedItems.Remove(item);
-            }
+            watcher.Dispose();
+            _attachedItems.Remove(item);
         }
+    }
 
-        private void AttachItems()
+    private void AttachItems()
+    {
+        foreach (var item in _target)
         {
-            foreach (var item in _target)
-            {
-                AttachItem(item);
-            }
+            AttachItem(item);
         }
+    }
 
-        private void AttachItem(TItem item)
+    private void AttachItem(TItem item)
+    {
+        if (item != null && !_attachedItems.ContainsKey(item))
         {
-            if (item != null && !_attachedItems.ContainsKey(item))
-            {
-                var watcher = _node.ItemNode.CreateWatcher(_map);
-                watcher.Attach(item);
-                _attachedItems.Add(item, watcher);
-            }
+            var watcher = _node.ItemNode.CreateWatcher(_map);
+            watcher.Attach(item);
+            _attachedItems.Add(item, watcher);
         }
     }
 }

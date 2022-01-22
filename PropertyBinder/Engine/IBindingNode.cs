@@ -1,36 +1,35 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace PropertyBinder.Engine
+namespace PropertyBinder.Engine;
+
+internal interface IBindingNodeBuilder
 {
-    internal interface IBindingNodeBuilder
-    {
-        bool HasBindingActions { get; }
+    bool HasBindingActions { get; }
 
-        IBindingNodeBuilder GetSubNode(BindableMember member);
+    IBindingNodeBuilder GetSubNode(BindableMember member);
 
-        ICollectionBindingNodeBuilder GetCollectionNode(Type itemType);
+    ICollectionBindingNodeBuilder GetCollectionNode(Type itemType);
 
-        void AddAction(string propertyName, int actionIndex);
-    }
+    void AddAction(string propertyName, int actionIndex);
+}
 
-    internal interface IBindingNodeBuilder<in TParent> : IBindingNodeBuilder
-    {
-        IBindingNodeBuilder<TParent> Clone();
+internal interface IBindingNodeBuilder<in TParent> : IBindingNodeBuilder
+{
+    IBindingNodeBuilder<TParent> Clone();
 
-        IBindingNodeBuilder<TNewParent> CloneForDerivedParentType<TNewParent>()
-            where TNewParent : TParent;
+    IBindingNodeBuilder<TNewParent> CloneForDerivedParentType<TNewParent>()
+        where TNewParent : TParent;
 
-        IBindingNode<TParent> CreateBindingNode(int[] actionRemap);
-    }
+    IBindingNode<TParent> CreateBindingNode(int[] actionRemap);
+}
 
-    internal interface IBindingNode<in TParent>
-    {
-        IObjectWatcher<TParent> CreateWatcher(BindingMap map);
-    }
+internal interface IBindingNode<in TParent>
+{
+    IObjectWatcher<TParent> CreateWatcher(BindingMap map);
+}
 
-    internal interface IObjectWatcher<in TParent> : IDisposable
-    {
-        void Attach(TParent parent);
-    }
+internal interface IObjectWatcher<in TParent> : IDisposable
+{
+    void Attach(TParent parent);
 }
