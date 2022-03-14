@@ -11,7 +11,7 @@
     <PackageReference Include="NUnit" Version="3.12.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="3.17.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.2.0" />
-    <PackageReference Include="PropertyChanged.Fody" Version="3.3.1" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <PackageReference Include="PropertyChanged.Fody" Version="3.4.0" PrivateAssets="All"><ExcludeAssets>runtime</ExcludeAssets><IncludeAssets>All</IncludeAssets></PackageReference>
     <PackageReference Include="PublicApiGenerator" Version="9.3.0" />
     <PackageReference Include="Shouldly" Version="3.0.2" />
   </ItemGroup>

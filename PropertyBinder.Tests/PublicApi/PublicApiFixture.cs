@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Reflection;
 using NUnit.Framework;
 
 namespace PropertyBinder.Tests
@@ -10,12 +11,13 @@ namespace PropertyBinder.Tests
         [Test]
         public void ShouldPreservePublicApi()
         {
+            var publicApiFolder = AppDomain.CurrentDomain.BaseDirectory;
 #if NET45
-            string fileName = Path.Combine(Environment.CurrentDirectory, @"..\..\..\PublicApi\PublicApi_NET45.txt");
+            string fileName = Path.Combine(publicApiFolder, @"PublicApi_NET45.txt");
 #endif
 
 #if NETCOREAPP 
-            string fileName = Path.Combine(Environment.CurrentDirectory, @"..\..\..\PublicApi\PublicApi_NETSTANDARD21.txt");
+            string fileName = Path.Combine(publicApiFolder, @"PublicApi_NETSTANDARD21.txt");
 #endif
 
             var assembly = typeof(Binder<>).Assembly;
