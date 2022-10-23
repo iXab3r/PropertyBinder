@@ -73,7 +73,7 @@ namespace PropertyBinder.Tests
         public IEnumerable<UniversalStub> EnumerableCollection { get; set; }
 
         public ObservableDictionary<string> Dictionary { get; set; }
-
+        
         public int SubscriptionsCount
         {
             get

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
+using Moq;
 using NUnit.Framework;
 using Shouldly;
 
@@ -506,6 +508,36 @@ namespace PropertyBinder.Tests
             }
         }
         
+        [TestCaseSource(nameof(ShouldNotThrowOnDeepInheritanceSamplesCases))]
+        public void ShouldNotThrowOnDeepInheritanceSamples(Expression<Func<UniversalStubEx, int?>> bindExpression)
+        {
+            //Initially this case was throwing an error:
+            //-------------------------------
+            //Type handle 'PropertyBinder.Tests.IComplexAuraList`1[System.String]' and method handle with declaring type 'PropertyBinder.Tests.ISourceListEx`1[System.String]' are incompatible.
+            //Get RuntimeMethodHandle and declaring RuntimeTypeHandle off the same MethodBase.
+            //-------------------------------
+            //Problem was in how BindableMember was resolved - it should've respected DeclaringType rather than ParentType, which DOES NOT have Collection property at all => error
+            var binder = new Binder<UniversalStubEx>();
+            var stub = new UniversalStubEx
+            {
+                ValueList = Mock.Of<IInheritedList<string>>(x => x.ValueType == 1 && x.ReferenceType == (object)1 && x["1"] == 1 && x.List == new List<string>() { "a" })
+            };
+
+            binder.Bind(bindExpression).PropagateNullValues().To((x, v) => x.Int = v ?? 0);
+            using (binder.Attach(stub))
+            {
+                stub.Int.ShouldBe(1);
+            }
+        }
+
+        public static IEnumerable<Expression<Func<UniversalStubEx, int?>>> ShouldNotThrowOnDeepInheritanceSamplesCases()
+        {
+            yield return x => x.ValueList.List.Count;
+            yield return x => x.ValueList.ValueType;
+            yield return x => (int)x.ValueList.ReferenceType;
+            yield return x => x.ValueList["1"];
+        }
+
         private static void ActionBinding(UniversalStub stub, int source)
         {
             stub.Int = source;

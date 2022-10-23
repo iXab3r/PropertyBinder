@@ -56,7 +56,15 @@ internal sealed class BindingExpressionVisitor<TContext> : ExpressionVisitor
             var node = _rootNode;
             foreach (var entry in path)
             {
-                node = node.GetSubNode(entry);
+                try
+                {
+                    var nextNode = node.GetSubNode(entry);
+                    node = nextNode;
+                }
+                catch (Exception e)
+                {
+                    throw new ArgumentException($"Failed to bind path on entry {entry} of path {string.Join(" => ", path)}, expression: {expr}, current node: {node}", e);
+                }
             }
 
             var collectionNode = node.GetCollectionNode(collectionItemType);
@@ -91,29 +99,38 @@ internal sealed class BindingExpressionVisitor<TContext> : ExpressionVisitor
     private bool TryBindPath(Expression expr)
     {
         var path = expr.GetPathToParameter(_rootParameterType);
-        if (path != null)
+        if (path == null)
         {
-            var node = _rootNode;
-            BindableMember parentMember = null;
-
-            foreach (var entry in path)
-            {
-                if (parentMember != null)
-                {
-                    node = node.GetSubNode(parentMember);
-                }
-
-                if (entry.CanSubscribe)
-                {
-                    node.AddAction(entry.Name, _actionIndex);
-                }
-
-                parentMember = entry;
-            }
-
-            return true;
+            return false;
         }
 
-        return false;
+        var node = _rootNode;
+        BindableMember parentMember = null;
+
+        foreach (var entry in path)
+        {
+            if (parentMember != null)
+            {
+                try
+                {
+                    var nextNode = node.GetSubNode(parentMember);
+                    node = nextNode;
+                }
+                catch (Exception e)
+                {
+                    throw new ArgumentException($"Failed to bind path on entry {entry} of path {string.Join(" => ", path)}, expression: {expr}, current node: {node}", e);
+                }
+            }
+
+            if (entry.CanSubscribe)
+            {
+                node.AddAction(entry.Name, _actionIndex);
+            }
+
+            parentMember = entry;
+        }
+
+        return true;
+
     }
 }

@@ -29,18 +29,18 @@ internal static class ExpressionHelpers
                 return list;
             }
 
-            var memberExpr = expr as MemberExpression;
-            if (memberExpr != null)
+            if (expr is MemberExpression memberExpr)
             {
                 var member = memberExpr.Member;
 
-                if (member is PropertyInfo)
+                switch (member)
                 {
-                    list.Add(new BindableMember((PropertyInfo) member));
-                }
-                else if (member is FieldInfo)
-                {
-                    list.Add(new BindableMember((FieldInfo) member));
+                    case PropertyInfo propertyInfo:
+                        list.Add(new BindableMember(propertyInfo));
+                        break;
+                    case FieldInfo fieldInfo:
+                        list.Add(new BindableMember(fieldInfo));
+                        break;
                 }
 
                 expr = memberExpr.Expression;
@@ -49,8 +49,7 @@ internal static class ExpressionHelpers
 
             if (expr.NodeType == ExpressionType.Convert || expr.NodeType == ExpressionType.ConvertChecked)
             {
-                var unary = expr as UnaryExpression;
-                if (unary != null)
+                if (expr is UnaryExpression unary)
                 {
                     expr = unary.Operand;
                     continue;
@@ -58,9 +57,7 @@ internal static class ExpressionHelpers
             }
 
             // attempt to resolve path from indexer
-            var callExpr = expr as MethodCallExpression;
-            string index;
-            if (callExpr != null && callExpr.IsBindableIndexerInvocation(out index))
+            if (expr is MethodCallExpression callExpr && callExpr.IsBindableIndexerInvocation(out var index))
             {
                 list.Add(new BindableMember(index));
                 expr = callExpr.Object;
