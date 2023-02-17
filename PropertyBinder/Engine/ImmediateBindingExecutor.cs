@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using PropertyBinder.Helpers;
 
 namespace PropertyBinder.Engine;
@@ -13,48 +14,54 @@ internal sealed class ImmediateBindingExecutor : BindingExecutor
 
     protected override void ExecuteInternal(BindingMap map, IReadOnlyList<int> bindings)
     {
-        _scheduledBindings.Reserve(bindings.Count);
-        foreach (var i in bindings)
+        lock (map)
         {
-            if (map.Schedule[i])
+            _scheduledBindings.Reserve(bindings.Count);
+            foreach (var i in bindings)
             {
-                // already scheduled
-                continue;
-            }
-
-            map.Schedule[i] = true;
-            _scheduledBindings.EnqueueUnsafe(new BindingReference(map, i));
-        }
-        try
-        {
-            while (true)
-            {
-                if (_scheduledBindings.Count <= 0)
+                if (map.Schedule[i])
                 {
-                    break;
+                    // already scheduled
+                    continue;
                 }
 
-                ref var binding = ref _scheduledBindings.DequeueRef();
-                binding.UnSchedule();
-
-                try
-                {
-                    binding.Execute();
-                }
-                catch (Exception ex)
-                {
-                    HandleExecutionException(ex, binding);
-                }
+                map.Schedule[i] = true;
+                _scheduledBindings.EnqueueUnsafe(new BindingReference(map, i));
             }
-        }
-        catch (Exception)
-        {
-            while (_scheduledBindings.Count > 0)
+
+            try
             {
-                _scheduledBindings.DequeueRef().UnSchedule();
-            }
+                while (true)
+                {
+                    if (_scheduledBindings.Count <= 0)
+                    {
+                        break;
+                    }
 
-            throw;
+                    ref var binding = ref _scheduledBindings.DequeueRef();
+                    binding.UnSchedule();
+
+                    try
+                    {
+                        Log.WriteLine($" Executing binding #{binding.Index} in {binding.Map}");
+                        binding.Execute();
+                        Log.WriteLine($" Executed binding #{binding.Index} in {binding.Map}");
+                    }
+                    catch (Exception ex)
+                    {
+                        HandleExecutionException(ex, binding);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                while (_scheduledBindings.Count > 0)
+                {
+                    _scheduledBindings.DequeueRef().UnSchedule();
+                }
+
+                throw;
+            }
         }
     }
 
