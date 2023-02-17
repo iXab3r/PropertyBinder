@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using PropertyBinder.Helpers;
 
 namespace PropertyBinder.Engine;
@@ -43,9 +42,7 @@ internal sealed class ImmediateBindingExecutor : BindingExecutor
 
                     try
                     {
-                        Log.WriteLine($" Executing binding #{binding.Index} in {binding.Map}");
                         binding.Execute();
-                        Log.WriteLine($" Executed binding #{binding.Index} in {binding.Map}");
                     }
                     catch (Exception ex)
                     {

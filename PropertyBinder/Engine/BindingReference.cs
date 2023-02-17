@@ -4,7 +4,7 @@ using PropertyBinder.Diagnostics;
 
 namespace PropertyBinder.Engine;
 
-internal readonly struct BindingReference
+internal readonly record struct BindingReference
 {
     public readonly BindingMap Map;
     public readonly int Index;

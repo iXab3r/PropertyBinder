@@ -1,9 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
-using System.Reactive.Disposables;
-using DynamicData.Binding;
 
 namespace PropertyBinder.Engine;
 
@@ -13,7 +10,6 @@ internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollectio
     private readonly CollectionBindingNode<TCollection, TItem> _node;
     private readonly IDictionary<TItem, IObjectWatcher<TItem>> _attachedItems = new Dictionary<TItem, IObjectWatcher<TItem>>();
 
-    private readonly SerialDisposable _targetAnchors = new();
     private TCollection _target;
 
     public CollectionWatcher(CollectionBindingNode<TCollection, TItem> node, BindingMap map)
@@ -21,22 +17,27 @@ internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollectio
         _node = node;
         Map = map;
     }
-    
+
     public BindingMap Map { get; }
 
     public void Attach(TCollection parent)
     {
         DetachItems();
 
-        _targetAnchors.Disposable = null;
-        
+        var notify = _target as INotifyCollectionChanged;
+        if (notify != null)
+        {
+            notify.CollectionChanged -= TargetCollectionChanged;
+        }
+
         _target = parent;
 
-        if (_target is INotifyCollectionChanged notifyCollectionChanged)
+        notify = _target as INotifyCollectionChanged;
+        if (notify != null)
         {
-            _targetAnchors.Disposable = notifyCollectionChanged.ObserveCollectionChanges().Subscribe(x => TargetCollectionChanged(x.Sender, x.EventArgs));
-        } 
-        
+            notify.CollectionChanged += TargetCollectionChanged;
+        }
+
         if (_target != null && _node.ItemNode != null)
         {
             AttachItems();
@@ -45,7 +46,6 @@ internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollectio
 
     public void Dispose()
     {
-        _targetAnchors.Dispose();
         Attach(default);
     }
 
@@ -70,14 +70,14 @@ internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollectio
 
                 case NotifyCollectionChangedAction.Remove:
                 {
-                    DetachItem((TItem)e.OldItems[0]); 
+                    DetachItem((TItem) e.OldItems[0]);
                     break;
                 }
 
                 case NotifyCollectionChangedAction.Replace:
                 {
-                    DetachItem((TItem)e.OldItems[0]);
-                    AttachItem((TItem)e.NewItems[0]);
+                    DetachItem((TItem) e.OldItems[0]);
+                    AttachItem((TItem) e.NewItems[0]);
                     break;
                 }
 
@@ -88,7 +88,7 @@ internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollectio
                     break;
                 }
             }
-        
+
             if (_node.Indexes.Length > 0)
             {
                 BindingExecutor.Execute(Map, _node.Indexes);
@@ -102,6 +102,7 @@ internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollectio
         {
             watcher.Dispose();
         }
+
         _attachedItems.Clear();
     }
 

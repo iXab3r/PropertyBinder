@@ -139,30 +139,34 @@ public sealed class Binder<TContext>
 
         var watcher = _factory.Attach(context);
 
-        foreach (var action in _compactedActions)
+        lock (watcher.Map)
         {
-            if (!action.RunOnAttach)
+            for (var index = 0; index < _compactedActions.Length; index++)
             {
-                continue;
-            }
-
-            try
-            {
-                action.Action(context);
-            }
-            catch (Exception ex)
-            {
-                var debugDetails = new { StampExpression = action.StampExpression.ToString(), StampInvokeResult = action.GetStamped(context), Context = context }.ToString();
-                var exception = new BindingException($"Binder exception on Attach, details: {debugDetails} - {ex}", ex);
-                var eventArgs = new BindingExceptionEventArgs(exception, debugDetails);
-                    
-                _binderExceptionHandler?.Invoke(this, eventArgs);
-                if (!eventArgs.Handled)
+                var action = _compactedActions[index];
+                if (!action.RunOnAttach)
                 {
-                    Binder.ExceptionHandler?.Invoke(this, eventArgs);
+                    continue;
+                }
+
+                try
+                {
+                    action.Action(context);
+                }
+                catch (Exception ex)
+                {
+                    var debugDetails = new {StampExpression = action.StampExpression.ToString(), StampInvokeResult = action.GetStamped(context), Context = context}.ToString();
+                    var exception = new BindingException($"Binder exception on Attach, details: {debugDetails} - {ex}", ex);
+                    var eventArgs = new BindingExceptionEventArgs(exception, debugDetails);
+
+                    _binderExceptionHandler?.Invoke(this, eventArgs);
                     if (!eventArgs.Handled)
                     {
-                        throw exception;
+                        Binder.ExceptionHandler?.Invoke(this, eventArgs);
+                        if (!eventArgs.Handled)
+                        {
+                            throw exception;
+                        }
                     }
                 }
             }

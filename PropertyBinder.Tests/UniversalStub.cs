@@ -113,5 +113,10 @@ namespace PropertyBinder.Tests
         {
             return value;
         }
+
+        public override string ToString()
+        {
+            return new { Int, String }.ToString();
+        }
     }
 }

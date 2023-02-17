@@ -14,7 +14,6 @@ namespace PropertyBinder.Tests
         
         [Test]
         [Repeat(1000)]
-        [Ignore("There is an issue in PropertyBinder related to simultaneous Attach+Change. Should be fixed, but it is kinda exotic.")]
         public void ShouldAssignBoundPropertyWhenAttached()
         {
             _binder.Bind(x => x.Int.ToString()).To(x => x.String);
@@ -42,6 +41,34 @@ namespace PropertyBinder.Tests
             _stub.Int.ShouldBe(4);
             _stub.String.ShouldBe("4");
             anchor?.Dispose();
+        }
+        
+        [Test]
+        [Repeat(1000)]
+        public void ShouldAssignBoundPropertyWhenAttachedMultipleChanges()
+        {
+            _binder.Bind(x => x.Int.ToString()).To(x => x.String);
+            _stub.Int = 3;
+            _stub.String.ShouldBe(null);
+            var startSignal = new ManualResetEventSlim(false);
+            var changer1 = Task.Factory.StartNew(() =>
+            {
+                startSignal.Wait();
+                Thread.Sleep(Rng.Next(0, 10));
+                _stub.Int = 4;
+            });
+            var changer2 = Task.Factory.StartNew(() =>
+            {
+                startSignal.Wait();
+                Thread.Sleep(Rng.Next(0, 10));
+                _stub.Int = 5;
+            });
+            
+            _binder.Attach(_stub);
+
+            startSignal.Set();
+            Task.WaitAll(changer1, changer2);
+            _stub.String.ShouldBe(_stub.Int.ToString());
         }
         
         [Test]

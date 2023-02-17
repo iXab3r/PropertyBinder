@@ -52,32 +52,9 @@ internal sealed class BindingMap<TContext> : BindingMap
     {
         return _actions[index].DebugContext;
     }
-}
 
-internal sealed class TransactionBindingMap<T> : BindingMap
-{
-    private static readonly DebugContext TransactionDebugContext = new DebugContext("Transaction", null);
-
-    public readonly T Parent;
-
-    public TransactionBindingMap(T parent)
-        : base(0)
+    public override string ToString()
     {
-        Parent = parent;
-    }
-
-    public override void Execute(int index)
-    {
-    }
-
-    public override string GetStamp(int index)
-    {
-        return "";
-    }
-
-
-    public override DebugContext GetDebugContext(int index)
-    {
-        return TransactionDebugContext;
+        return $"BindingMap({_actions.Length}) {_context}";
     }
 }
