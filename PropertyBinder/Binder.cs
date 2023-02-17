@@ -139,46 +139,19 @@ public sealed class Binder<TContext>
 
         var watcher = _factory.Attach(context);
 
-        foreach (var action in _compactedActions)
+        var actionsToExecute = new List<int>();
+        for (var actionIdx = 0; actionIdx < _compactedActions.Length; actionIdx++)
         {
+            var action = _compactedActions[actionIdx];
             if (!action.RunOnAttach)
             {
                 continue;
             }
 
-            try
-            {
-                action.Action(context);
-            }
-            catch (Exception ex)
-            {
-                string stampResult;
-                try 
-                {
-                    var stamped = ExpressionHelpers.Stamped<TContext>(action.StampExpression);
-                    stampResult = stamped?.Invoke(context) ?? "NULL";
-                }
-                catch(Exception stampEx)
-                {
-                    stampResult = $"Failed: {stampEx}";
-                }
-                var debugDetails = new { StampExpression = action.StampExpression.ToString(), StampInvokeResult = stampResult, Context = context }.ToString();
-
-                var exception = new BindingException($"Binder exception, details: {debugDetails} - {ex}", ex);
-                var exceptionEventArgs = new ExceptionEventArgs(exception, debugDetails);
-                    
-                _exceptionHandler?.Invoke(this, exceptionEventArgs);
-                if (!exceptionEventArgs.Handled)
-                {
-                    Binder.ExceptionHandler?.Invoke(this, exceptionEventArgs);
-                    if (!exceptionEventArgs.Handled)
-                    {
-                        throw exception;
-                    }
-                }
-            }
+            actionsToExecute.Add(actionIdx);
         }
-
+        
+        BindingExecutor.Execute(watcher.Map, actionsToExecute);
         return watcher;
     }
 

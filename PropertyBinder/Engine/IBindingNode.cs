@@ -28,7 +28,7 @@ internal interface IBindingNode<in TParent>
     IObjectWatcher<TParent> CreateWatcher(BindingMap map);
 }
 
-internal interface IObjectWatcher<in TParent> : IDisposable
+internal interface IObjectWatcher<in TParent> : IWatcherRoot
 {
     void Attach(TParent parent);
 }

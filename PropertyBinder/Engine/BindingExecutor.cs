@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using PropertyBinder.Diagnostics;
 
@@ -20,9 +21,7 @@ internal abstract class BindingExecutor
 
     public static BindingExecutor ResetInstance()
     {
-        _instance = Binder.SupportTransactions 
-            ? Binder.DebugMode || _tracer != null ? new DebugModeBindingExecutor() : new ProductionModeBindingExecutor()
-            : new ImmediateBindingExecutor();
+        _instance = new ImmediateBindingExecutor();
         return _instance;
     }
 
@@ -38,7 +37,7 @@ internal abstract class BindingExecutor
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Execute(BindingMap map, int[] bindings)
+    public static void Execute(BindingMap map, IReadOnlyList<int> bindings)
     {
         Instance.ExecuteInternal(map, bindings);
     }
@@ -55,13 +54,13 @@ internal abstract class BindingExecutor
         Instance.ResumeInternal();
     }
 
-    protected abstract void ExecuteInternal(BindingMap map, int[] bindings);
+    protected abstract void ExecuteInternal(BindingMap map, IReadOnlyList<int> bindings);
 
     protected abstract void SuspendInternal();
 
     protected abstract void ResumeInternal();
 
-    protected virtual void HandleExecutionException(Exception ex, BindingReference binding)
+    protected static void HandleExecutionException(Exception ex, BindingReference binding)
     {
         string stampResult;
         try 

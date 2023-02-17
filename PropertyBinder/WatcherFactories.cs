@@ -6,7 +6,7 @@ namespace PropertyBinder;
 
 internal interface IWatcherFactory<in TContext>
 {
-    IDisposable Attach(TContext context);
+    IWatcherRoot Attach(TContext context);
 }
     
 internal sealed class DefaultWatcherFactory<TContext> : IWatcherFactory<TContext>
@@ -21,7 +21,7 @@ internal sealed class DefaultWatcherFactory<TContext> : IWatcherFactory<TContext
         _rootNode = rootNode;
     }
 
-    public IDisposable Attach(TContext context)
+    public IWatcherRoot Attach(TContext context)
     {
         var map = new BindingMap<TContext>(_actions);
         map.SetContext(context);
@@ -45,7 +45,7 @@ internal sealed class ReusableWatcherFactory<TContext> : IWatcherFactory<TContex
         _root = root;
     }
 
-    public IDisposable Attach(TContext context)
+    public IWatcherRoot Attach(TContext context)
     {
         Root root = null;
         while (_detachedWatchers.TryPop(out var reference))
@@ -66,29 +66,47 @@ internal sealed class ReusableWatcherFactory<TContext> : IWatcherFactory<TContex
         return root;
     }
 
-    private sealed class Root : IDisposable
+    private sealed class Root : IWatcherRoot<TContext>
     {
         private readonly ReusableWatcherFactory<TContext> _parent;
-        private readonly IObjectWatcher<TContext> _watcher;
-        private readonly BindingMap<TContext> _map;
 
         public Root(ReusableWatcherFactory<TContext> parent)
         {
             _parent = parent;
-            _map = new BindingMap<TContext>(parent._actions);
-            _watcher = _parent._root.CreateWatcher(_map);
+            Map = new BindingMap<TContext>(parent._actions);
+            Watcher = _parent._root.CreateWatcher(Map);
         }
+        
+        public IObjectWatcher<TContext> Watcher { get; }
+        
+        public BindingMap<TContext> Map { get; }
+        
+        BindingMap IWatcherRoot.Map => Map;
 
         public void SetContext(TContext context)
         {
-            _map.SetContext(context);
-            _watcher.Attach(context);
+            Map.SetContext(context);
+            Watcher.Attach(context);
         }
 
         public void Dispose()
         {
-            _watcher.Attach(null);
+            Watcher.Attach(null);
             _parent._detachedWatchers.Push(new WeakReference(this));
         }
+
     }
+}
+
+internal interface IWatcherRoot : IDisposable
+{
+    BindingMap Map { get; }
+}
+
+internal interface IWatcherRoot<TContext> : IWatcherRoot
+    where TContext : class
+{
+    new BindingMap<TContext> Map { get; }
+        
+    IObjectWatcher<TContext> Watcher { get; }
 }

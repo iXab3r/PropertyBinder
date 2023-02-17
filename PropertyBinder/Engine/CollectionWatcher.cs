@@ -8,7 +8,6 @@ internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollectio
     where TCollection : IEnumerable<TItem>
 {
     private readonly CollectionBindingNode<TCollection, TItem> _node;
-    private readonly BindingMap _map;
     private readonly IDictionary<TItem, IObjectWatcher<TItem>> _attachedItems = new Dictionary<TItem, IObjectWatcher<TItem>>();
 
     protected TCollection _target;
@@ -16,8 +15,10 @@ internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollectio
     public CollectionWatcher(CollectionBindingNode<TCollection, TItem> node, BindingMap map)
     {
         _node = node;
-        _map = map;
+        Map = map;
     }
+    
+    public BindingMap Map { get; }
 
     public void Attach(TCollection parent)
     {
@@ -52,7 +53,7 @@ internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollectio
     {
         if (_node.Indexes.Length > 0)
         {
-            BindingExecutor.Execute(_map, _node.Indexes);
+            BindingExecutor.Execute(Map, _node.Indexes);
         }
 
         if (_node.ItemNode != null)
@@ -119,7 +120,7 @@ internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollectio
     {
         if (item != null && !_attachedItems.ContainsKey(item))
         {
-            var watcher = _node.ItemNode.CreateWatcher(_map);
+            var watcher = _node.ItemNode.CreateWatcher(Map);
             watcher.Attach(item);
             _attachedItems.Add(item, watcher);
         }

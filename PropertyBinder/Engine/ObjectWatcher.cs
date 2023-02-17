@@ -17,7 +17,6 @@ internal sealed class ObjectWatcher<TParent, TNode> : IObjectWatcher<TParent>
 
     private readonly IReadOnlyDictionary<string, IObjectWatcher<TNode>> _subWatchers;
     private readonly IObjectWatcher<TNode> _collectionWatcher;
-    private readonly BindingMap _map;
     private TNode _target;
     private readonly PropertyChangedEventHandler _handler;
     private readonly BindingNode<TParent, TNode> _bindingNode;
@@ -25,7 +24,7 @@ internal sealed class ObjectWatcher<TParent, TNode> : IObjectWatcher<TParent>
     public ObjectWatcher(BindingNode<TParent, TNode> bindingNode, BindingMap map)
     {
         _bindingNode = bindingNode;
-        _map = map;
+        Map = map;
         if (bindingNode.CollectionNode != null)
         {
             _collectionWatcher = bindingNode.CollectionNode.CreateWatcher(map);
@@ -33,24 +32,24 @@ internal sealed class ObjectWatcher<TParent, TNode> : IObjectWatcher<TParent>
         _subWatchers = bindingNode.SubNodes?.ToReadOnlyDictionary2(x => x.Key, x => x.Value.CreateWatcher(map));
         _handler = _subWatchers == null ? TerminalTargetPropertyChanged : new PropertyChangedEventHandler(TargetPropertyChanged);
     }
+    
+    public BindingMap Map { get; }
 
     public void Attach(TParent parent)
     {
         if (!IsValueType)
         {
-            var notify = _target as INotifyPropertyChanged;
-            if (notify != null)
+            if (_target is INotifyPropertyChanged notify)
             {
                 notify.PropertyChanged -= _handler;
             }
         }
 
-        _target = parent == null ? default(TNode) : _bindingNode.TargetSelector(parent);
+        _target = parent == null ? default : _bindingNode.TargetSelector(parent);
 
         if (!IsValueType)
         {
-            var notify = _target as INotifyPropertyChanged;
-            if (notify != null)
+            if (_target is INotifyPropertyChanged notify)
             {
                 notify.PropertyChanged += _handler;
             }
@@ -69,31 +68,28 @@ internal sealed class ObjectWatcher<TParent, TNode> : IObjectWatcher<TParent>
 
     public void Dispose()
     {
-        Attach(default(TParent));
+        Attach(default);
     }
 
     private void TargetPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
-        IObjectWatcher<TNode> node;
         var propertyName = e.PropertyName;
-        if (_subWatchers.TryGetValue(propertyName, out node))
+        if (_subWatchers.TryGetValue(propertyName, out var node))
         {
             node.Attach(_target);
         }
 
-        int[] bindings;
-        if (_bindingNode.BindingActions.TryGetValue(propertyName, out bindings))
+        if (_bindingNode.BindingActions.TryGetValue(propertyName, out var bindings))
         {
-            BindingExecutor.Execute(_map, bindings);
+            BindingExecutor.Execute(Map, bindings);
         }
     }
 
     private void TerminalTargetPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
-        int[] bindings;
-        if (_bindingNode.BindingActions.TryGetValue(e.PropertyName, out bindings))
+        if (_bindingNode.BindingActions.TryGetValue(e.PropertyName, out var bindings))
         {
-            BindingExecutor.Execute(_map, bindings);
+            BindingExecutor.Execute(Map, bindings);
         }
     }
 }

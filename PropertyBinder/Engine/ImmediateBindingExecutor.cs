@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using PropertyBinder.Helpers;
 
 namespace PropertyBinder.Engine;
@@ -10,9 +11,9 @@ internal sealed class ImmediateBindingExecutor : BindingExecutor
 {
     private readonly LiteQueue<BindingReference> _scheduledBindings = new LiteQueue<BindingReference>();
 
-    protected override void ExecuteInternal(BindingMap map, int[] bindings)
+    protected override void ExecuteInternal(BindingMap map, IReadOnlyList<int> bindings)
     {
-        _scheduledBindings.Reserve(bindings.Length);
+        _scheduledBindings.Reserve(bindings.Count);
         foreach (var i in bindings)
         {
             if (map.Schedule[i])
@@ -24,13 +25,18 @@ internal sealed class ImmediateBindingExecutor : BindingExecutor
             map.Schedule[i] = true;
             _scheduledBindings.EnqueueUnsafe(new BindingReference(map, i));
         }
-
         try
         {
-            while (_scheduledBindings.Count > 0)
+            while (true)
             {
-                ref BindingReference binding = ref _scheduledBindings.DequeueRef();
+                if (_scheduledBindings.Count <= 0)
+                {
+                    break;
+                }
+
+                ref var binding = ref _scheduledBindings.DequeueRef();
                 binding.UnSchedule();
+
                 try
                 {
                     binding.Execute();
@@ -47,6 +53,7 @@ internal sealed class ImmediateBindingExecutor : BindingExecutor
             {
                 _scheduledBindings.DequeueRef().UnSchedule();
             }
+
             throw;
         }
     }

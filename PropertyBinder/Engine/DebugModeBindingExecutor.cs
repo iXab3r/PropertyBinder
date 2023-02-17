@@ -33,7 +33,7 @@ internal sealed class DebugModeBindingExecutor : BindingExecutor
         public readonly ScheduledBinding Parent;
     }
 
-    protected override void ExecuteInternal(BindingMap map, int[] bindings)
+    protected override void ExecuteInternal(BindingMap map, IReadOnlyList<int> bindings)
     {
         foreach (var i in bindings)
         {
