@@ -17,7 +17,7 @@ public sealed class Binder<TContext>
     private readonly List<BindingAction> _actions;
     private IWatcherFactory<TContext> _factory;
     private BindingAction[] _compactedActions;
-    private EventHandler<ExceptionEventArgs> _exceptionHandler;
+    private EventHandler<BindingExceptionEventArgs> _binderExceptionHandler;
 
     private Binder(IBindingNodeBuilder<TContext> rootNode, List<BindingAction> actions)
     {
@@ -38,13 +38,13 @@ public sealed class Binder<TContext>
             _actions.Select(x => x != null ? new Binder<TNewContext>.BindingAction(x.Action, x.Key, x.DebugContext, x.RunOnAttach, x.StampExpression) : null).ToList());
     }
 
-    public Binder<TContext> WithExceptionHandler(EventHandler<ExceptionEventArgs> exceptionHandler)
+    public Binder<TContext> WithExceptionHandler(EventHandler<BindingExceptionEventArgs> exceptionHandler)
     {
-        if (_exceptionHandler != null)
+        if (_binderExceptionHandler != null)
         {
             throw new InvalidOperationException($"Exception handler is already set for {this}");
         }
-        _exceptionHandler = exceptionHandler;
+        _binderExceptionHandler = exceptionHandler;
         return this;
     }
 
@@ -139,19 +139,35 @@ public sealed class Binder<TContext>
 
         var watcher = _factory.Attach(context);
 
-        var actionsToExecute = new List<int>();
-        for (var actionIdx = 0; actionIdx < _compactedActions.Length; actionIdx++)
+        foreach (var action in _compactedActions)
         {
-            var action = _compactedActions[actionIdx];
             if (!action.RunOnAttach)
             {
                 continue;
             }
 
-            actionsToExecute.Add(actionIdx);
+            try
+            {
+                action.Action(context);
+            }
+            catch (Exception ex)
+            {
+                var debugDetails = new { StampExpression = action.StampExpression.ToString(), StampInvokeResult = action.GetStamped(context), Context = context }.ToString();
+                var exception = new BindingException($"Binder exception on Attach, details: {debugDetails} - {ex}", ex);
+                var eventArgs = new BindingExceptionEventArgs(exception, debugDetails);
+                    
+                _binderExceptionHandler?.Invoke(this, eventArgs);
+                if (!eventArgs.Handled)
+                {
+                    Binder.ExceptionHandler?.Invoke(this, eventArgs);
+                    if (!eventArgs.Handled)
+                    {
+                        throw exception;
+                    }
+                }
+            }
         }
-        
-        BindingExecutor.Execute(watcher.Map, actionsToExecute);
+
         return watcher;
     }
 
@@ -206,7 +222,7 @@ public static class Binder
         BindingExecutor.SetTracer(tracer);
     }
 
-    public static void SetExceptionHandler(EventHandler<ExceptionEventArgs> exceptionHandler)
+    public static void SetExceptionHandler(EventHandler<BindingExceptionEventArgs> exceptionHandler)
     {
         ExceptionHandler = exceptionHandler;
         BindingExecutor.SetExceptionHandler(exceptionHandler);
@@ -238,7 +254,7 @@ public static class Binder
         }
     }
         
-    internal static EventHandler<ExceptionEventArgs> ExceptionHandler { get; private set; }
+    internal static EventHandler<BindingExceptionEventArgs> ExceptionHandler { get; private set; }
         
     public static IExpressionCompiler ExpressionCompiler { get; set; } = DefaultExpressionCompiler.Instance;
 

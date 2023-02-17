@@ -10,7 +10,7 @@ namespace PropertyBinder.Tests
         private Binder<ExceptionalStub> _binder;
         private ExceptionalStub _stub;
 
-        private ExceptionEventArgs ea;
+        private BindingExceptionEventArgs ea;
 
         [SetUp]
         public void Setup()
@@ -41,7 +41,7 @@ namespace PropertyBinder.Tests
             }
         }
 
-        private void BinderException(object sender, ExceptionEventArgs e)
+        private void BinderException(object sender, BindingExceptionEventArgs e)
         {
             ea = e;
         }

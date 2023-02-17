@@ -45,8 +45,7 @@ internal sealed class BindingMap<TContext> : BindingMap
 
     public override string GetStamp(int index)
     {
-        var actionStampExpression = _actions[index]?.StampExpression;
-        return actionStampExpression != null ? ExpressionHelpers.Stamped<TContext>(actionStampExpression).Invoke(_context) ?? "" : "";
+        return _actions[index].GetStamped(_context);
     }
 
     public override DebugContext GetDebugContext(int index)

@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
+using System.Runtime.CompilerServices;
 using PropertyBinder.Diagnostics;
 
 namespace PropertyBinder.Engine;
@@ -40,12 +41,29 @@ internal readonly struct BindingReference
 
     public string GetStamp()
     {
-        return Map.GetStamp(Index);
+        try 
+        {
+            return Map.GetStamp(Index);
+        }
+        catch(Exception stampEx)
+        {
+            return $"Failed to get stamp: {stampEx}";
+        }
     }
 
     public DebugContext DebugContext
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Map.GetDebugContext(Index);
+        get
+        {
+            try 
+            {
+                return Map.GetDebugContext(Index);
+            }
+            catch(Exception)
+            {
+                return default;
+            }
+        }
     }
 }

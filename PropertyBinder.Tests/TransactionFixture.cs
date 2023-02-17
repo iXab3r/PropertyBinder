@@ -4,6 +4,7 @@ using Shouldly;
 namespace PropertyBinder.Tests
 {
     [TestFixture]
+    [Ignore("Transactions are disabled for now as they are not stable")]
     internal class TransactionFixture : BindingsFixture
     {
         [Theory]

@@ -3,9 +3,9 @@ using PropertyBinder.Diagnostics;
 
 namespace PropertyBinder;
 
-public class ExceptionEventArgs : EventArgs
+public class BindingExceptionEventArgs : EventArgs
 {
-    internal ExceptionEventArgs(Exception ex, string stampedStr, DebugContext bindingDebugContext = null)
+    internal BindingExceptionEventArgs(Exception ex, string stampedStr, DebugContext bindingDebugContext = null)
     {
         Exception = ex;
         Description = bindingDebugContext?.Description;

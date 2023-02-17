@@ -10,7 +10,7 @@ internal abstract class BindingExecutor
     [ThreadStatic]
     private static BindingExecutor _instance;
         
-    private static EventHandler<ExceptionEventArgs> _exceptionHandler;
+    private static EventHandler<BindingExceptionEventArgs> _executorExceptionHandler;
     protected static IBindingTracer _tracer;
 
     private static BindingExecutor Instance
@@ -31,9 +31,9 @@ internal abstract class BindingExecutor
         ResetInstance();
     }
 
-    public static void SetExceptionHandler(EventHandler<ExceptionEventArgs> exceptionHandler)
+    public static void SetExceptionHandler(EventHandler<BindingExceptionEventArgs> exceptionHandler)
     {
-        _exceptionHandler = exceptionHandler;
+        _executorExceptionHandler = exceptionHandler;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -62,32 +62,17 @@ internal abstract class BindingExecutor
 
     protected static void HandleExecutionException(Exception ex, BindingReference binding)
     {
-        string stampResult;
-        try 
+        var stampResult = binding.GetStamp();
+        var debugContext = binding.DebugContext;
+        var exception = new BindingException($"BindingExecutor exception, description: {debugContext?.Description}, stamp: {stampResult} - {ex}", ex);
+        var exceptionEventArgs = new BindingExceptionEventArgs(exception, stampResult, debugContext);
+        
+        _executorExceptionHandler?.Invoke(null, exceptionEventArgs);
+        if (exceptionEventArgs.Handled)
         {
-            stampResult = binding.GetStamp();
-        }
-        catch(Exception stampEx)
-        {
-            stampResult = $"Failed to get stamp: {stampEx}";
+            return;
         }
 
-        DebugContext debugContext;
-        try 
-        {
-            debugContext = binding.DebugContext;
-        }
-        catch(Exception)
-        {
-            debugContext = default;
-        }
-                        
-        var exception = new BindingException($"BindingExecutor exception, description: {debugContext?.Description}, stamp: {stampResult} - {ex}", ex);
-        var exceptionEventArgs = new ExceptionEventArgs(exception, stampResult, debugContext);
-        _exceptionHandler?.Invoke(null, exceptionEventArgs);
-        if (!exceptionEventArgs.Handled)
-        {
-            throw exception;
-        }
+        throw exception;
     }
 }
