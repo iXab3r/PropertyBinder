@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Reactive.Disposables;
+using DynamicData.Binding;
 
 namespace PropertyBinder.Engine;
 
@@ -10,7 +13,8 @@ internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollectio
     private readonly CollectionBindingNode<TCollection, TItem> _node;
     private readonly IDictionary<TItem, IObjectWatcher<TItem>> _attachedItems = new Dictionary<TItem, IObjectWatcher<TItem>>();
 
-    protected TCollection _target;
+    private readonly SerialDisposable _targetAnchors = new();
+    private TCollection _target;
 
     public CollectionWatcher(CollectionBindingNode<TCollection, TItem> node, BindingMap map)
     {
@@ -24,20 +28,15 @@ internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollectio
     {
         DetachItems();
 
-        var notify = _target as INotifyCollectionChanged;
-        if (notify != null)
-        {
-            notify.CollectionChanged -= TargetCollectionChanged;
-        }
-
+        _targetAnchors.Disposable = null;
+        
         _target = parent;
 
-        notify = _target as INotifyCollectionChanged;
-        if (notify != null)
+        if (_target is INotifyCollectionChanged notifyCollectionChanged)
         {
-            notify.CollectionChanged += TargetCollectionChanged;
-        }
-
+            _targetAnchors.Disposable = notifyCollectionChanged.ObserveCollectionChanges().Subscribe(x => TargetCollectionChanged(x.Sender, x.EventArgs));
+        } 
+        
         if (_target != null && _node.ItemNode != null)
         {
             AttachItems();
@@ -46,17 +45,20 @@ internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollectio
 
     public void Dispose()
     {
-        Attach(default(TCollection));
+        _targetAnchors.Dispose();
+        Attach(default);
     }
 
     protected virtual void TargetCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
     {
-        if (_node.Indexes.Length > 0)
+        if (_node.ItemNode == null)
         {
-            BindingExecutor.Execute(Map, _node.Indexes);
+            if (_node.Indexes.Length > 0)
+            {
+                BindingExecutor.Execute(Map, _node.Indexes);
+            }
         }
-
-        if (_node.ItemNode != null)
+        else
         {
             switch (e.Action)
             {
@@ -86,6 +88,11 @@ internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollectio
                     break;
                 }
             }
+        
+            if (_node.Indexes.Length > 0)
+            {
+                BindingExecutor.Execute(Map, _node.Indexes);
+            }
         }
     }
 
@@ -100,12 +107,13 @@ internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollectio
 
     private void DetachItem(TItem item)
     {
-        IObjectWatcher<TItem> watcher;
-        if (item != null && _target != null && !_target.Contains(item) && _attachedItems.TryGetValue(item, out watcher))
+        if (item == null || _target == null || _target.Contains(item) || !_attachedItems.TryGetValue(item, out var watcher))
         {
-            watcher.Dispose();
-            _attachedItems.Remove(item);
+            return;
         }
+
+        watcher.Dispose();
+        _attachedItems.Remove(item);
     }
 
     private void AttachItems()
@@ -118,11 +126,13 @@ internal class CollectionWatcher<TCollection, TItem> : IObjectWatcher<TCollectio
 
     private void AttachItem(TItem item)
     {
-        if (item != null && !_attachedItems.ContainsKey(item))
+        if (item == null || _attachedItems.ContainsKey(item))
         {
-            var watcher = _node.ItemNode.CreateWatcher(Map);
-            watcher.Attach(item);
-            _attachedItems.Add(item, watcher);
+            return;
         }
+
+        var watcher = _node.ItemNode.CreateWatcher(Map);
+        watcher.Attach(item);
+        _attachedItems.Add(item, watcher);
     }
 }
