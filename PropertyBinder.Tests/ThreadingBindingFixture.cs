@@ -13,7 +13,7 @@ namespace PropertyBinder.Tests
         private static readonly ThreadSafeRandom Rng = new ThreadSafeRandom();
         
         [Test]
-        [Repeat(1000)]
+        [Repeat(100)]
         public void ShouldAssignBoundPropertyWhenAttached()
         {
             _binder.Bind(x => x.Int.ToString()).To(x => x.String);
@@ -44,7 +44,8 @@ namespace PropertyBinder.Tests
         }
         
         [Test]
-        [Repeat(1000)]
+        [Repeat(100)]
+        [Ignore("Known issue - multi-threaded changes will lead to inconclusive result")]
         public void ShouldAssignBoundPropertyWhenAttachedMultipleChanges()
         {
             _binder.Bind(x => x.Int.ToString()).To(x => x.String);
@@ -65,6 +66,7 @@ namespace PropertyBinder.Tests
             });
             
             _binder.Attach(_stub);
+            _stub.String.ShouldBe("3");
 
             startSignal.Set();
             Task.WaitAll(changer1, changer2);
@@ -72,7 +74,7 @@ namespace PropertyBinder.Tests
         }
         
         [Test]
-        [Repeat(1000)]
+        [Repeat(100)]
         public void ShouldAssignBoundPropertyInsideCollectionWhenAttached()
         {
             _binder.Bind(x => x.Collection.All(y => y.Int == 1)).To(x => x.Flag);

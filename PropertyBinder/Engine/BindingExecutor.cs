@@ -11,8 +11,6 @@ internal abstract class BindingExecutor
     [ThreadStatic]
     private static BindingExecutor _instance;
         
-    protected static readonly object _executionLock = new object();
- 
     private static EventHandler<BindingExceptionEventArgs> _executorExceptionHandler;
     
     protected static IBindingTracer _tracer;
@@ -47,31 +45,28 @@ internal abstract class BindingExecutor
         IWatcherRoot watcher, 
         IReadOnlyList<Binder<TContext>.BindingAction> actions) where TContext : class
     {
-        lock (_executionLock)
+        for (var index = 0; index < actions.Count; index++)
         {
-            for (var index = 0; index < actions.Count; index++)
+            var action = actions[index];
+            if (!action.RunOnAttach)
             {
-                var action = actions[index];
-                if (!action.RunOnAttach)
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                try
-                {
-                    action.Action(context);
-                }
-                catch (Exception ex)
-                {
-                    var debugDetails = new { StampExpression = action.StampExpression.ToString(), StampInvokeResult = action.GetStamped(context), Context = context }.ToString();
-                    var exception = new BindingException($"Binder exception on Attach, details: {debugDetails} - {ex}", ex);
-                    var eventArgs = new BindingExceptionEventArgs(exception, debugDetails);
+            try
+            {
+                action.Action(context);
+            }
+            catch (Exception ex)
+            {
+                var debugDetails = new { StampExpression = action.StampExpression.ToString(), StampInvokeResult = action.GetStamped(context), Context = context }.ToString();
+                var exception = new BindingException($"Binder exception on Attach, details: {debugDetails} - {ex}", ex);
+                var eventArgs = new BindingExceptionEventArgs(exception, debugDetails);
 
-                    binder.HandleException(eventArgs);
-                    if (!eventArgs.Handled)
-                    {
-                        throw exception;
-                    }
+                binder.HandleException(eventArgs);
+                if (!eventArgs.Handled)
+                {
+                    throw exception;
                 }
             }
         }

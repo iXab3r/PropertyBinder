@@ -13,52 +13,49 @@ internal sealed class ImmediateBindingExecutor : BindingExecutor
 
     protected override void ExecuteInternal(BindingMap map, IReadOnlyList<int> bindings)
     {
-        lock (_executionLock)
+        _scheduledBindings.Reserve(bindings.Count);
+        foreach (var i in bindings)
         {
-            _scheduledBindings.Reserve(bindings.Count);
-            foreach (var i in bindings)
+            if (map.Schedule[i])
             {
-                if (map.Schedule[i])
-                {
-                    // already scheduled
-                    continue;
-                }
-
-                map.Schedule[i] = true;
-                _scheduledBindings.EnqueueUnsafe(new BindingReference(map, i));
+                // already scheduled
+                continue;
             }
 
-            try
-            {
-                while (true)
-                {
-                    if (_scheduledBindings.Count <= 0)
-                    {
-                        break;
-                    }
+            map.Schedule[i] = true;
+            _scheduledBindings.EnqueueUnsafe(new BindingReference(map, i));
+        }
 
-                    ref var binding = ref _scheduledBindings.DequeueRef();
-                    binding.UnSchedule();
-
-                    try
-                    {
-                        binding.Execute();
-                    }
-                    catch (Exception ex)
-                    {
-                        HandleExecutionException(ex, binding);
-                    }
-                }
-            }
-            catch (Exception)
+        try
+        {
+            while (true)
             {
-                while (_scheduledBindings.Count > 0)
+                if (_scheduledBindings.Count <= 0)
                 {
-                    _scheduledBindings.DequeueRef().UnSchedule();
+                    break;
                 }
 
-                throw;
+                ref var binding = ref _scheduledBindings.DequeueRef();
+                binding.UnSchedule();
+
+                try
+                {
+                    binding.Execute();
+                }
+                catch (Exception ex)
+                {
+                    HandleExecutionException(ex, binding);
+                }
             }
+        }
+        catch (Exception)
+        {
+            while (_scheduledBindings.Count > 0)
+            {
+                _scheduledBindings.DequeueRef().UnSchedule();
+            }
+
+            throw;
         }
     }
 
