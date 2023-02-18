@@ -58,6 +58,15 @@ public sealed class Binder<TContext>
         return Binder.BeginTransaction();
     }
 
+    internal void HandleException(BindingExceptionEventArgs eventArgs)
+    {
+        _binderExceptionHandler?.Invoke(this, eventArgs);
+        if (!eventArgs.Handled)
+        {
+            Binder.ExceptionHandler?.Invoke(this, eventArgs);
+        }
+    }
+
     internal void AddRule(Action<TContext> bindingAction, string key, DebugContext debugContext, bool runOnAttach, bool canOverride,
         Expression stampExpression, IEnumerable<Expression> triggerExpressions)
     {
@@ -138,39 +147,7 @@ public sealed class Binder<TContext>
         }
 
         var watcher = _factory.Attach(context);
-
-        lock (watcher.Map)
-        {
-            for (var index = 0; index < _compactedActions.Length; index++)
-            {
-                var action = _compactedActions[index];
-                if (!action.RunOnAttach)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    action.Action(context);
-                }
-                catch (Exception ex)
-                {
-                    var debugDetails = new {StampExpression = action.StampExpression.ToString(), StampInvokeResult = action.GetStamped(context), Context = context}.ToString();
-                    var exception = new BindingException($"Binder exception on Attach, details: {debugDetails} - {ex}", ex);
-                    var eventArgs = new BindingExceptionEventArgs(exception, debugDetails);
-
-                    _binderExceptionHandler?.Invoke(this, eventArgs);
-                    if (!eventArgs.Handled)
-                    {
-                        Binder.ExceptionHandler?.Invoke(this, eventArgs);
-                        if (!eventArgs.Handled)
-                        {
-                            throw exception;
-                        }
-                    }
-                }
-            }
-        }
+        BindingExecutor.ExecuteImmediate(this, context, watcher, _compactedActions);        
 
         return watcher;
     }

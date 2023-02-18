@@ -13,7 +13,7 @@ internal sealed class ImmediateBindingExecutor : BindingExecutor
 
     protected override void ExecuteInternal(BindingMap map, IReadOnlyList<int> bindings)
     {
-        lock (map)
+        lock (_executionLock)
         {
             _scheduledBindings.Reserve(bindings.Count);
             foreach (var i in bindings)
