@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net45;netcoreapp3</TargetFrameworks>
+    <TargetFrameworks>net452;netcoreapp3</TargetFrameworks>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
@@ -28,7 +28,7 @@
   <ItemGroup Condition="$(DefineConstants.Contains('NETFRAMEWORK'))">
     <ProjectReference Include="..\PropertyBinder\PropertyBinder.csproj">
       <Project>{c5b0e4fa-9b98-4fd3-a650-782161655466}</Project>
-      <SetTargetFramework>TargetFramework=net45</SetTargetFramework>
+      <SetTargetFramework>TargetFramework=net452</SetTargetFramework>
       <Name>PropertyBinder</Name>
     </ProjectReference>
   </ItemGroup>

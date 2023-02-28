@@ -12,7 +12,7 @@ namespace PropertyBinder.Tests
         public void ShouldPreservePublicApi()
         {
             var publicApiFolder = AppDomain.CurrentDomain.BaseDirectory;
-#if NET45
+#if NET452
             string fileName = Path.Combine(publicApiFolder, @"PublicApi_NET45.txt");
 #endif
 
