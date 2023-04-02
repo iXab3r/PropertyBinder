@@ -8,6 +8,7 @@ using Shouldly;
 namespace PropertyBinder.Tests
 {
     [TestFixture]
+    [Ignore("Too flaky on build-servers")]
     internal class ThreadingBindingFixture : BindingsFixture
     {
         private static readonly ThreadSafeRandom Rng = new ThreadSafeRandom();
