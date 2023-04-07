@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using System.ComponentModel;
+using PropertyChanged;
 
 namespace PropertyBinder.Tests
 {
+    [SuppressPropertyChangedWarnings]
     internal sealed class ObservableDictionary<TValue> : INotifyPropertyChanged
     {
         private readonly Dictionary<string, TValue> _dictionary = new Dictionary<string, TValue>();
