@@ -30,6 +30,8 @@ public sealed class Binder<TContext>
     {
     }
 
+    public Action<TContext, Action<TContext>> AssignmentAction { get; private set; }
+    
     public Binder<TNewContext> Clone<TNewContext>()
         where TNewContext : class, TContext
     {
@@ -45,6 +47,16 @@ public sealed class Binder<TContext>
             throw new InvalidOperationException($"Exception handler is already set for {this}");
         }
         _binderExceptionHandler = exceptionHandler;
+        return this;
+    }
+    
+    public Binder<TContext> WithAssignmentAction(Action<TContext, Action<TContext>> assignmentAction)
+    {
+        if (AssignmentAction != null)
+        {
+            throw new InvalidOperationException($"Assignment action is already set to {assignmentAction}");
+        }
+        AssignmentAction = assignmentAction;
         return this;
     }
 

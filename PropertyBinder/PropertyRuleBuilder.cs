@@ -16,6 +16,7 @@ public sealed class PropertyRuleBuilder<T, TContext>
     private bool _runOnAttach = true;
     private bool _canOverride = true;
     private bool _propagateNullValues;
+    private Action<TContext, Action<TContext>> _assignmentAction;
     private Action<TContext> _debugAction;
     private string _key;
     private readonly DebugContextBuilder _debugContext;
@@ -71,7 +72,8 @@ public sealed class PropertyRuleBuilder<T, TContext>
             _dependencies.Add(targetParent);
         }
 
-        AddRule(Binder.ExpressionCompiler.Compile(assignment), key, assignment);
+        var assignmentAction = Binder.ExpressionCompiler.Compile(assignment);
+        AddRule(ResolveAssignmentAction(assignmentAction), key, assignment);
     }
 
     public void To(Action<TContext, T> action)
@@ -91,12 +93,30 @@ public sealed class PropertyRuleBuilder<T, TContext>
                 getValueExpression),
             contextParameter);
 
-        AddRule(Binder.ExpressionCompiler.Compile(finalExpression), _key, finalExpression);
+        var assignmentAction = Binder.ExpressionCompiler.Compile(finalExpression);
+        AddRule(ResolveAssignmentAction(assignmentAction), _key, finalExpression);
     }
 
     public void To(Action<TContext> action)
     {
-        AddRule(action, _key, _sourceExpression);
+        AddRule(ResolveAssignmentAction(action), _key, _sourceExpression);
+    }
+
+    private Action<TContext> ResolveAssignmentAction(Action<TContext> action)
+    {
+        if (_assignmentAction == null && _binder.AssignmentAction == null)
+        {
+            return action;
+        }
+
+        if (_assignmentAction != null)
+        {
+            return context => _assignmentAction(context, action);
+        }
+        else
+        {
+            return context => _binder.AssignmentAction(context, action);
+        }
     }
 
     public PropertyRuleBuilder<T, TContext> OverrideKey(string bindingRuleKey)
@@ -114,6 +134,16 @@ public sealed class PropertyRuleBuilder<T, TContext>
     public PropertyRuleBuilder<T, TContext> DoNotOverride()
     {
         _canOverride = false;
+        return this;
+    }
+    
+    public PropertyRuleBuilder<T, TContext> WithAssignmentAction(Action<TContext, Action<TContext>> assignmentAction)
+    {
+        if (_assignmentAction != null)
+        {
+            throw new InvalidOperationException($"Assignment action is already set to {assignmentAction}");
+        }
+        _assignmentAction = assignmentAction;
         return this;
     }
 
