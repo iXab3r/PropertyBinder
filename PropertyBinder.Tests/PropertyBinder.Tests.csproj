@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net452;netcoreapp3</TargetFrameworks>
+    <TargetFrameworks>net462;net7</TargetFrameworks>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
@@ -8,13 +8,13 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Moq" Version="4.15.2" />
-    <PackageReference Include="NUnit" Version="3.12.0" />
+    <PackageReference Include="NUnit" Version="3.13.3" />
     <PackageReference Include="NUnit3TestAdapter" Version="3.17.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.2.0" />
     <PackageReference Include="ParallelExtensionsExtras" Version="1.2.0" />
     <PackageReference Include="PropertyChanged.Fody" Version="3.4.0" PrivateAssets="All"><ExcludeAssets>runtime</ExcludeAssets><IncludeAssets>All</IncludeAssets></PackageReference>
     <PackageReference Include="PublicApiGenerator" Version="9.3.0" />
-    <PackageReference Include="Shouldly" Version="3.0.2" />
+    <PackageReference Include="Shouldly" Version="4.2.1" />
   </ItemGroup>
 
   <ItemGroup Condition="$(DefineConstants.Contains('NETCOREAPP'))">
@@ -28,7 +28,7 @@
   <ItemGroup Condition="$(DefineConstants.Contains('NETFRAMEWORK'))">
     <ProjectReference Include="..\PropertyBinder\PropertyBinder.csproj">
       <Project>{c5b0e4fa-9b98-4fd3-a650-782161655466}</Project>
-      <SetTargetFramework>TargetFramework=net452</SetTargetFramework>
+      <SetTargetFramework>TargetFramework=net462</SetTargetFramework>
       <Name>PropertyBinder</Name>
     </ProjectReference>
   </ItemGroup>
