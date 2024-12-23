@@ -38,43 +38,27 @@ internal sealed class BindingMap<TContext> : BindingMap
     public void SetContext(TContext context)
     {
         _context = context;
-        if (_context is null)
-        {
-            //cleanup references to the current context
-            Array.Clear(_actions, 0, _actions.Length);
-        }
     }
 
     public override void Execute(int index)
     {
-        var action = _actions[index];
         var context = _context;
-        if (action == null || context is null)
+        if (context is null)
         {
+            //this usually means that Binder is already disposed
             return;
         }
-        action.Action(context);
+        _actions[index].Action(context);
     }
 
     public override string GetStamp(int index)
     {
-        var action = _actions[index];
-        var context = _context;
-        if (action == null || context is null)
-        {
-            return "disposed";
-        }
-        return action.GetStamped(context);
+        return _actions[index].GetStamped(_context);
     }
 
     public override DebugContext GetDebugContext(int index)
     {
-        var action = _actions[index];
-        if (action == null)
-        {
-            return default;
-        }
-        return action.DebugContext;
+        return _actions[index].DebugContext;
     }
     
     public override string ToString()

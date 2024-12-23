@@ -60,11 +60,6 @@ internal abstract class BindingExecutor
         for (var index = 0; index < actions.Count; index++)
         {
             var action = actions[index];
-            if (action == null)
-            {
-                continue;
-            }
-
             if (!action.RunOnAttach)
             {
                 continue;
