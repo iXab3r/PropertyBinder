@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Shouldly;
@@ -528,6 +529,110 @@ namespace PropertyBinder.Tests
             {
                 stub.Int.ShouldBe(1);
             }
+        }
+
+        [Test]
+        [Theory]
+        public void ShouldBeCollectedWithBinderInvocations(bool disposeBindingMapOnWatcherDisposal)
+        {
+            //Given
+            // the main problem is that BindingMap that is held inside ThreadStatic BindingExecutor
+            // holds reference to even those objects which have already been disposed/cleaned up
+            // normally, if queue keeps processing, this is not a problem as such bindings will be executed and removed from the queue
+            // but in multi-threaded scenarios there may be such BindingExecutors which get to execute only at periods of high load and 
+            // become stale afterwards. In such cases there is a chance that there will be queue filled with references to no-longer alive objects.
+            // This prevents them from being GCed.
+
+            var initialValue = Binder.DisposeBindingMapOnWatcherDisposal;
+            try
+            {
+                Binder.DisposeBindingMapOnWatcherDisposal = disposeBindingMapOnWatcherDisposal;
+                    
+                WeakReference reference = null;
+                new Action(() => 
+                {
+                    var binder = new Binder<UniversalStub>();
+                    binder.BindAction(x => Console.WriteLine($"Int: {x.Int}"));
+                    var stub = new UniversalStub
+                    {
+                        Int = 1
+                    };
+                    reference = new WeakReference(stub, true);
+                    var anchor = binder.Attach(stub);
+                    stub.Int = 2;
+                    anchor.Dispose();
+                    stub.Int = 3;
+                }).Invoke();
+
+                //When
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+
+                //Then
+                if (disposeBindingMapOnWatcherDisposal)
+                {
+                    //last reference should've been cleaned up by now - object must be GCable
+                    reference.IsAlive.ShouldBeFalse();
+                    reference.Target.ShouldBeNull();
+                }
+                else
+                {
+                    //BindingMap still holds a reference to the object, meaning it is not disposable
+                    reference.IsAlive.ShouldBeTrue();
+                    reference.Target.ShouldNotBeNull();
+                }
+            }
+            finally
+            {
+                Binder.DisposeBindingMapOnWatcherDisposal = initialValue;
+            }
+        }
+
+        [Test]
+        public void ShouldBeCollectedWithoutBinderInvocations()
+        {
+            //Given
+            WeakReference reference = null;
+            new Action(() => 
+            {
+                var binder = new Binder<UniversalStub>();
+                binder.BindAction(x => Console.WriteLine($"Int: {x.Int}"));
+                var stub = new UniversalStub
+                {
+                    Int = 1
+                };
+                reference = new WeakReference(stub, true);
+            }).Invoke();
+
+            //When
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            //Then
+            reference.IsAlive.ShouldBeFalse();
+            reference.Target.ShouldBeNull();
+        }
+
+        [Test]
+        [TestCase(typeof(object))]
+        [TestCase(typeof(UniversalStub))]
+        [TestCase(typeof(UniversalStubEx))]
+        public void ShouldBeCollectable_Stub(Type type)
+        {
+            WeakReference reference = null;
+            new Action(() => 
+            {
+                var instance = Activator.CreateInstance(type);
+                reference = new WeakReference(instance, true);
+            }).Invoke();
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+
+            reference.IsAlive.ShouldBeFalse();
+            reference.Target.ShouldBeNull();
         }
 
         public static IEnumerable<Expression<Func<UniversalStubEx, int?>>> ShouldNotThrowOnDeepInheritanceSamplesCases()

@@ -70,9 +70,12 @@ internal sealed class ReusableWatcherFactory<TContext> : IWatcherFactory<TContex
         public void Dispose()
         {
             Watcher.Attach(null);
+            if (Binder.DisposeBindingMapOnWatcherDisposal)
+            {
+                Map.SetContext(null);
+            }
             _parent._detachedWatchers.Push(new WeakReference(this));
         }
-
     }
 }
 

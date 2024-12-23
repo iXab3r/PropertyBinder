@@ -254,4 +254,19 @@ public static class Binder
     public static CommandCanExecuteCheckMode DefaultCommandCanExecuteCheckMode { get; set; } = CommandCanExecuteCheckMode.DoNotCheck;
 
     public static bool AllowReuseOfWatchers { get; set; } = true;
+    
+    /// <summary>
+    /// As of 2024-12-23
+    /// This flag enables optimization/bugfix which has to be VERY thoroughly tested.
+    /// Whenever Watcher(binding) gets disposed, BindingMap will also be disposed, making sure that
+    /// no stale references are kept inside it.
+    /// The main problem is that BindingMap that is held inside ThreadStatic BindingExecutor
+    /// holds reference to even those objects which have already been disposed/cleaned up
+    /// normally, if queue keeps processing, this is not a problem as such bindings will be executed and removed from the queue
+    /// but in multi-threaded scenarios there may be such BindingExecutors which get to execute only at periods of high load and 
+    /// become stale afterwards. In such cases there is a chance that there will be queue filled with references to no-longer alive objects.
+    /// This prevents them from being GCed.
+    /// More details is available in ShouldBeCollectedWithBinderInvocations test
+    /// </summary>
+    public static bool DisposeBindingMapOnWatcherDisposal { get; set; } = false;
 }
