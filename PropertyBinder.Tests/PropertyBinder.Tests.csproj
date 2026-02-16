@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net462;net7</TargetFrameworks>
+    <TargetFrameworks>net462;net7;</TargetFrameworks>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
@@ -17,7 +17,7 @@
     <PackageReference Include="Shouldly" Version="4.2.1" />
   </ItemGroup>
 
-  <ItemGroup Condition="$(DefineConstants.Contains('NETCOREAPP'))">
+  <ItemGroup Condition="'$(TargetFramework)' != 'net462'">
     <ProjectReference Include="..\PropertyBinder\PropertyBinder.csproj">
       <Project>{c5b0e4fa-9b98-4fd3-a650-782161655466}</Project>
       <SetTargetFramework>TargetFramework=netstandard2.1</SetTargetFramework>
@@ -25,7 +25,7 @@
     </ProjectReference>
   </ItemGroup>
 
-  <ItemGroup Condition="$(DefineConstants.Contains('NETFRAMEWORK'))">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
     <ProjectReference Include="..\PropertyBinder\PropertyBinder.csproj">
       <Project>{c5b0e4fa-9b98-4fd3-a650-782161655466}</Project>
       <SetTargetFramework>TargetFramework=net462</SetTargetFramework>

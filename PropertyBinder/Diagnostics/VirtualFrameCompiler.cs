@@ -7,7 +7,7 @@ using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using PropertyBinder.Engine;
 
-#if !NETSTANDARD
+#if NETFRAMEWORK
 using System.Diagnostics.SymbolStore;
 #endif
 
@@ -24,7 +24,7 @@ namespace PropertyBinder.Diagnostics
         static VirtualFrameCompiler()
         {
             var assemblyName = new AssemblyName("BINDING ");
-#if NETSTANDARD
+#if !NETFRAMEWORK
             Assembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
             Module = Assembly.DefineDynamicModule(ModuleName);
 #else
@@ -40,7 +40,7 @@ namespace PropertyBinder.Diagnostics
                 File.Delete(assemblyPath);
             }
 
-#if NETSTANDARD
+#if !NETFRAMEWORK
             var generator = new Lokad.ILPack.AssemblyGenerator();
             generator.GenerateAssembly(Module.Assembly, assemblyPath);
 #else
@@ -81,7 +81,7 @@ namespace PropertyBinder.Diagnostics
                 var fileName = frame?.GetFileName();
                 if (!string.IsNullOrEmpty(fileName))
                 {
-#if !NETSTANDARD
+#if NETFRAMEWORK
                     var symbolDocument = Module.DefineDocument(fileName, SymDocumentType.Text, SymLanguageType.CSharp, SymLanguageVendor.Microsoft);
                     il.MarkSequencePoint(symbolDocument, frame.GetFileLineNumber(), frame.GetFileColumnNumber(), frame.GetFileLineNumber(), frame.GetFileColumnNumber() + 2);
 #endif
@@ -119,7 +119,7 @@ namespace PropertyBinder.Diagnostics
 
                 if (!string.IsNullOrEmpty(fileName))
                 {
-#if !NETSTANDARD
+#if NETFRAMEWORK
                     binding.SetLocalSymInfo("binding", 0, il.ILOffset);
 #endif
                 }
